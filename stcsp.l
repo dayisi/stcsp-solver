@@ -39,6 +39,8 @@ extern "C"{
 "ge"            { return GE_OP; }
 "eq"            { return EQ_OP; }
 "ne"            { return NE_OP; }
+"max"			{ return MAX_OP; }
+"min"			{ return MIN_OP; }
 
 "and"           { return AND_OP; }
 "or"            { return OR_OP; }

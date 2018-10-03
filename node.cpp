@@ -1,10 +1,12 @@
 #include <cstdio>
+#include <stdio.h>
 #include <cstdlib>
 #include <cstring>
 #include "util.h"
 #include "node.h"
 #include "y.tab.h"
 
+void nodePrintDesc(FILE *fp, Node* node);
 Node *nodeNew(int token, char *str, int num1, int num2, Node *left, Node *right) {
     Node *node;
 
@@ -26,6 +28,9 @@ void nodeFree(Node *node) {
     if (node->right != NULL) {
         nodeFree(node->right);
     }
+	FILE *logfile=fopen("tim_log.txt","a+");
+	nodePrintDesc(logfile,node);
+	fclose(logfile);
     myFree(node);
 }
 
@@ -76,7 +81,11 @@ void nodePrintDesc(FILE *fp, Node *node) {
         fprintf(fp, "or");
     } else if (node->token == NOT_OP) {
         fprintf(fp, "not");
-    } else if (node->token == AT ) {
+	} else if (node->token == MAX_OP){
+		fprintf(fp, "max");
+	} else if (node->token == MIN_OP){
+		fprintf(fp, "min");
+	} else if (node->token == AT ) {
         fprintf(fp, "@");
     } else if (node->token == FIRST) {
         fprintf(fp, "first");

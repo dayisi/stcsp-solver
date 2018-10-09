@@ -1,4 +1,4 @@
-%token STATEMENT RANGE LIST
+%token STATEMENT RANGE LIST LIST_ELEMENT
 %token VAR OBJ ARR
 %token LE_CON GE_CON EQ_CON NE_CON IMPLY_CON UNTIL_CON
 %token LT_OP GT_OP LE_OP GE_OP EQ_OP NE_OP MAX_OP MIN_OP
@@ -47,7 +47,7 @@ char **my_argv = NULL;
 %type <num> relational_operator
 %type <node> additive_expression multiplicative_expression at_expression
 %type <node> fby_expression
-%type <node> unary_expression primary_expression
+%type <node> unary_expression primary_expression primary_expression_list
 
 %start solve_problem
 
@@ -75,7 +75,7 @@ array_content
 
 declaration_statement
     : VAR IDENTIFIER ':' '[' CONSTANT ',' CONSTANT ']' ';' { $$ = nodeNew(VAR, $2, 0, 0, NULL, nodeNew(RANGE, NULL, $5, $7, NULL, NULL)); }
-    | ARR IDENTIFIER ':' '{' array_content '}' ';' { $$=nodeNew(ARR, $2, 0, 0, NULL, $5); }
+    | ARR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(ARR, $2, 0, 0, NULL, $5); }
     ;
 
 
@@ -109,8 +109,12 @@ logical_not_expression
     ;
 
 compare_expression
-	: MAX_OP '(' unary_expression ',' unary_expression ')' { $$ = basicNodeNew(MAX_OP, $3, $5); }
-	| MIN_OP '(' unary_expression ',' unary_expression ')' { $$ = basicNodeNew(MIN_OP, $3, $5); }
+	: MAX_OP '(' '[' primary_expression_list ']' ')' { $$ = basicNodeNew(MAX_OP, NULL, $4); }
+	| MIN_OP '(' '[' primary_expression_list ']' ')' { $$ = basicNodeNew(MIN_OP, NULL, $4); }
+	;
+primary_expression_list
+	: primary_expression_list ',' primary_expression { $$ = basicNodeNew(LIST_ELEMENT,$1,$3); }
+	| primary_expression { $$ = basicNodeNew(LIST_ELEMENT, NULL, $1); }
 	;
 
 logical_or_expression

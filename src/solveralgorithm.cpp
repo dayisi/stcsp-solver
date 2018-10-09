@@ -65,7 +65,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
     int myLB, myUB, myLB2, myUB2;
 
     if (node != NULL) {
-        if (node->token != IDENTIFIER && node->token != CONSTANT && node->token != ARR_IDENTIFIER) {
+        if (node->token != IDENTIFIER && node->token != CONSTANT && node->token != ARR_IDENTIFIER && node->token != LIST_ELEMENT) {
             myLog(LOG_DETAILED_TRACE, "Token: %s\n", tokenString(solver->tokenTable, node->token));
         } else if ( node->token == CONSTANT ) {
             myLog(LOG_DETAILED_TRACE, "Constant: %d\n", node->num);
@@ -73,7 +73,9 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
             myLog(LOG_DETAILED_TRACE, "Identifier: %s\n", node->var->name);
         } else if ( node->token == ARR_IDENTIFIER ) {
             myLog(LOG_DETAILED_TRACE, "ARR_Identifier: %s\n", node->array->name);
-        }
+		} else if ( node->token == LIST_ELEMENT){
+			myLog(LOG_DETAILED_TRACE, "LIST_ELEMENT: \n");
+		}
 
         if (node->token == FIRST) {
             if (node->right->token == CONSTANT) {
@@ -265,7 +267,21 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
             ub = 1;
             node->right = constrNodeRight;
             constrNode = node;
-        } else {
+		} else if(node->token == MAX_OP || node->token == MIN_OP){
+			constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+			lb = myLB;
+			ub = myUB;
+			node->right = constrNodeRight;
+			constrNode = node;
+		} else if(node->token == LIST_ELEMENT){
+			constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+			constrNodeLeft = constraintNormalise(solver, node->left, myLB2, myUB2);	
+			ub = myUB > myUB2 ? myUB : myUB2;
+			lb = myLB < myLB2 ? myLB : myLB2;
+			node->right = constrNodeRight;
+			node->left = constrNodeLeft;
+			constrNode = node;
+		} else {
             constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
             constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
 
@@ -319,12 +335,6 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
             } else if (node->token == '%') {
                 lb = MY_INT_MIN;
                 ub = MY_INT_MAX;
-			} else if (node->token == MAX_OP){
-				lb = myLB > myLB2 ? myLB : myLB2;
-				ub = myUB > myUB2 ? myUB : myUB2;
-			} else if (node->token == MIN_OP){
-				lb = myLB < myLB2 ? myLB : myLB2;
-				ub = myUB < myUB2 ? myUB : myUB2;
 			}
 
             node->left = constrNodeLeft;
@@ -396,7 +406,25 @@ int solverValidateRe(ConstraintNode *node, bool & valid) {
                 right = solverValidateRe(node->right, valid);
                 res = (left <= right);
             }
-        } else {
+		} else if(node->token == MAX_OP){
+			ConstraintNode *list_node = node->right;
+			right = solverValidateRe(list_node->right, valid);
+			res = right;
+			while(list_node->left != NULL){
+				list_node = list_node->left;
+				right = solverValidateRe(list_node->right, valid);
+				res = res > right ? res : right;
+			}
+		} else if(node->token == MIN_OP){
+			ConstraintNode *list_node = node->right;
+			right = solverValidateRe(list_node->right, valid);
+			res = right;
+			while(list_node->left != NULL){
+				list_node = list_node->left;
+				right = solverValidateRe(list_node->right, valid);
+				res = res < right ? res : right;
+			}
+		}else {
             left = solverValidateRe(node->left, valid);
             right = solverValidateRe(node->right, valid);
             if (!valid) {
@@ -423,11 +451,7 @@ int solverValidateRe(ConstraintNode *node, bool & valid) {
                 res = left / right;
             } else if (node->token == '%') {
                 res = left % right;
-			} else if (node->token == MAX_OP){
-				res = left > right ? left : right;
-			} else if (node->token == MIN_OP){
-				res = left < right ? left : right;
-			}
+			} 
         }
     }
     return res;

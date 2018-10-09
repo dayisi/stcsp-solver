@@ -1,7 +1,7 @@
 %token STATEMENT RANGE LIST
 %token VAR OBJ ARR
 %token LE_CON GE_CON EQ_CON NE_CON IMPLY_CON UNTIL_CON
-%token LT_OP GT_OP LE_OP GE_OP EQ_OP NE_OP
+%token LT_OP GT_OP LE_OP GE_OP EQ_OP NE_OP MAX_OP MIN_OP
 %token AND_OP OR_OP NOT_OP
 %token AT FIRST NEXT FBY IF THEN ELSE
 %token ABS
@@ -42,7 +42,7 @@ char **my_argv = NULL;
 
 %type <node> statement_list statement declaration_statement objective_statement constraint_statement array_content
 %type <num> constraint_operator
-%type <node> expression logical_or_expression logical_and_expression logical_not_expression
+%type <node> expression logical_or_expression logical_and_expression logical_not_expression compare_expression
 %type <node> equality_expression relational_expression
 %type <num> relational_operator
 %type <node> additive_expression multiplicative_expression at_expression
@@ -100,12 +100,18 @@ constraint_operator
 
 expression
     : logical_not_expression { $$ = $1; }
+    | compare_expression { $$ = $1;}
     ;
 
 logical_not_expression 
     : logical_or_expression { $$ = $1; }
-    | NOT_OP logical_not_expression { $$ = basicNodeNew(NOT_OP, NULL, $2); }
+	| NOT_OP logical_not_expression { $$ = basicNodeNew(NOT_OP, NULL, $2); }
     ;
+
+compare_expression
+	: MAX_OP '(' unary_expression ',' unary_expression ')' { $$ = basicNodeNew(MAX_OP, $3, $5); }
+	| MIN_OP '(' unary_expression ',' unary_expression ')' { $$ = basicNodeNew(MIN_OP, $3, $5); }
+	;
 
 logical_or_expression
     : logical_and_expression { $$ = $1; }

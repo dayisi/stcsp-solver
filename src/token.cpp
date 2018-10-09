@@ -72,6 +72,10 @@ void tokenTableInit(TokenTable *table) {
     tokenTableAddToken(table, '/', "/", 8);
     tokenTableAddToken(table, '%', "%", 8);
 
+	/* compare_expression */
+	tokenTableAddToken(table, MAX_OP, "max", 7);
+	tokenTableAddToken(table, MIN_OP, "min", 7);
+	
     /* at_expression */
     tokenTableAddToken(table, AT, "@", 9); 
 

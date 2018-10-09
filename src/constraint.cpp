@@ -63,7 +63,7 @@ ConstraintNode *constraintNodeParse(Solver *solver, Node *node) {
         node->token == '+' || node->token == '-' || node->token == '*' || node->token == '/' || node->token == '%' ||
         node->token == LT_OP || node->token == GT_OP || node->token == LE_OP || node->token == GE_OP ||
         node->token == EQ_OP || node->token == NE_OP || node->token == AND_OP || node->token == OR_OP ||
-        node->token == FBY || node->token == IF || node->token == THEN) {
+        node->token == FBY || node->token == IF || node->token == THEN || node->token == MAX_OP || node->token == MIN_OP) {
         constrNode = constraintNodeNew(node->token, 0, NULL, NULL, 
                             constraintNodeParse(solver, node->left),
                             constraintNodeParse(solver, node->right));
@@ -96,7 +96,7 @@ void constraintNodeLogPrint(ConstraintNode *node, Solver *solver) {
         node->token == '+' || node->token == '-' || node->token == '*' || node->token == '/' || node->token == '%' ||
         node->token == AT ||
         node->token == LT_OP || node->token == GT_OP || node->token == LE_OP || node->token == GE_OP ||
-        node->token == EQ_OP || node->token == NE_OP || node->token == AND_OP || node->token == OR_OP) {
+        node->token == EQ_OP || node->token == NE_OP || node->token == AND_OP || node->token == OR_OP || node->token == MAX_OP || node->token == MIN_OP) {
         if (node->left->token != CONSTANT && node->left->token != IDENTIFIER && node->left->token != ARR_IDENTIFIER &&
             tokenLevel(solver->tokenTable, node->token) > tokenLevel(solver->tokenTable, node->left->token)) {
             myLog(LOG_DEBUG, "(");
@@ -427,6 +427,8 @@ LiftedInt constraintNodeValue(ConstraintNode *constrNode) {
                 case GE_OP : result.Int = (leftResult.Int >= rightResult.Int); break;
                 case EQ_OP : result.Int = (leftResult.Int == rightResult.Int); break;
                 case NE_OP : result.Int = (leftResult.Int != rightResult.Int); break;
+				case MAX_OP : result.Int = (leftResult.Int > rightResult.Int ? leftResult.Int : rightResult.Int); break;
+				case MIN_OP : result.Int = (leftResult.Int < rightResult.Int ? leftResult.Int : rightResult.Int); break;
                 case '+' : result.Int = leftResult.Int + rightResult.Int; break;
                 case '-' : result.Int = leftResult.Int - rightResult.Int; break;
                 case '*' : result.Int = leftResult.Int * rightResult.Int; break;

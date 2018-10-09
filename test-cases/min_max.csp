@@ -1,0 +1,6 @@
+var a: [0,2];
+var b: [0,2];
+var c: [0,2];
+var d: [0,2];
+var e: [0,2];
+e == min((max(a,b)), (max(c,d)));

@@ -319,7 +319,13 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
             } else if (node->token == '%') {
                 lb = MY_INT_MIN;
                 ub = MY_INT_MAX;
-            }
+			} else if (node->token == MAX_OP){
+				lb = myLB > myLB2 ? myLB : myLB2;
+				ub = myUB > myUB2 ? myUB : myUB2;
+			} else if (node->token == MIN_OP){
+				lb = myLB < myLB2 ? myLB : myLB2;
+				ub = myUB < myUB2 ? myUB : myUB2;
+			}
 
             node->left = constrNodeLeft;
             node->right = constrNodeRight;
@@ -417,7 +423,11 @@ int solverValidateRe(ConstraintNode *node, bool & valid) {
                 res = left / right;
             } else if (node->token == '%') {
                 res = left % right;
-            }
+			} else if (node->token == MAX_OP){
+				res = left > right ? left : right;
+			} else if (node->token == MIN_OP){
+				res = left < right ? left : right;
+			}
         }
     }
     return res;

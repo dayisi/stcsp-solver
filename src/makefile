@@ -53,6 +53,13 @@ endif
 ifeq ($(UNAME_S),Darwin)
 	CFLAGS = -g2 $(ARCH) -O2 -funroll-loops -fomit-frame-pointer -Wall -pedantic -Wno-write-strings -stdlib=libstdc++ $(DFLAGS)
 endif
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+CFLAGS = -g2 $(ARCH) -O2 -funroll-loops -fomit-frame-pointer -Wall -pedantic -Wno-write-strings $(DFLAGS)
+endif
+ifeq ($(UNAME_S),Darwin)
+CFLAGS = -g2 $(ARCH) -O2 -funroll-loops -fomit-frame-pointer -Wall -pedantic -Wno-write-strings -stdlib=libstdc++ $(DFLAGS)
+endif
 endif
 
 -std=gnu99

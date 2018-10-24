@@ -30,17 +30,10 @@ Variable *variableNew(Solver *solver, char *name, Node *domain_node) {
 	var->domain=vector<int>();
     var->domain.push_back(domain_node->num1);
 	Node *temp = domain_node;
-	cout<<"parse variable..."<<endl;
 	while(temp->left!=NULL && temp->left->token == LIST){
 		temp=temp->left;
-		cout<<temp->num1<<endl;
 		var->domain.push_back(temp->num1);
 	}	
-	cout<<var->name<<" has domain: ";
-	for(int i=0; i < var->domain.size();i ++){
-		cout<<var->domain.at(i)<<" ";
-	}
-	cout<<endl<<"end of variable domain"<<endl;
     var->prevValue = 0;
 
 	/*

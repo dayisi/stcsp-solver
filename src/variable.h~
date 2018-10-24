@@ -35,7 +35,7 @@ void variableFree(Variable *var);
 static inline int variableGetValue(Variable *var) {
     //if (var->currLB[0] != var->currUB[0]) {
 	if(var->currDM[0].size() > 1){
-		int temp_val = var->currDM[0].at(0);
+		int temp_val = var->currDM.at(0);
 		for(int i = 0; i < var->currDM[0].size(); i++){
         	if(temp_val != var->currDM[0].at(i)){
 				myLog(LOG_WARNING, "%s is not bounded yet.\n", var->name);

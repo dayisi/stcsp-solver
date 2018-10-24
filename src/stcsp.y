@@ -74,7 +74,7 @@ array_content
     ;
 
 declaration_statement
-    : VAR IDENTIFIER ':' '[' CONSTANT ',' CONSTANT ']' ';' { $$ = nodeNew(VAR, $2, 0, 0, NULL, nodeNew(RANGE, NULL, $5, $7, NULL, NULL)); }
+    : VAR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(VAR, $2, 0, 0, NULL, $5); }
     | ARR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(ARR, $2, 0, 0, NULL, $5); }
     ;
 

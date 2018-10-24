@@ -44,7 +44,17 @@ Variable *solverGetFirstUnboundVar(Solver *solver) {
     int size = solver->varQueue->size();
     bool found = false;
     for (int i = 0; !found && i < size; i++) {
-        if ((*(solver->varQueue))[i]->currLB[0] < (*(solver->varQueue))[i]->currUB[0]) {
+        //if ((*(solver->varQueue))[i]->currLB[0] < (*(solver->varQueue))[i]->currUB[0]) {
+		
+		if ((*(solver->varQueue))[i]->currDM[0].size() > 1) {
+			int temp_num = 	(*(solver->varQueue))[i]->currDM[0].front();
+			for(int j = 1; j<(*(solver->varQueue))[i]->currDM[0].size();j++){
+				if(temp_num != (*(solver->varQueue))[i]->currDM[0].at(j)){
+					var = (*(solver->varQueue))[i];
+					found = true;
+					return var;
+				}		
+			}
             var = (*(solver->varQueue))[i];
             found = true;
         }
@@ -107,20 +117,44 @@ Solver *solverNew(int k, int l, int prefixK, char *varOrder, int printSolution, 
     return solver;
 }
 
-Variable *solverAddVar(Solver *solver, char *var_name, int lb, int ub) {
+Variable *solverAddVar(Solver *solver, char *var_name, Node *domain_node) {
     Variable *var = NULL;
 
-    var = variableNew(solver, var_name, lb, ub);
+    var = variableNew(solver, var_name, domain_node);
     variableQueuePush(solver->varQueue, var);
 
     return var;
 }
 
-Variable *solverAuxVarNew(Solver *solver, char *var_name, int lb, int ub) {
+Variable *solverAuxVarNew(Solver *solver, char *var_name, vector<int> domain) {
     char name[16];
     sprintf(var_name == NULL ? name : var_name, "_V%d", solver->numAuxVar);
     solver->numAuxVar++;
-    return solverAddVar(solver, var_name == NULL ? name : var_name, lb, ub);
+    //return solverAddVar(solver, var_name == NULL ? name : var_name, lb, ub);
+	Variable *var = (Variable *)myMalloc(sizeof(Variable));
+	var->solver = solver;
+	var->name = strdup(var_name == NULL ? name : var_name);
+	var->domain = domain;
+	var->prevValue = 0;
+	var->currDM = (vector<int> *)myMalloc(sizeof(vector<int>) * solver->prefixK);
+	for( int i=0; i < solver->prefixK; i++){
+		var->currDM[i] = var->domain;
+	}
+
+	var->propagateTimestamp = 0;
+	var->propagateValue = 0;
+	var->isSignature = 0;
+	var->isUntil = 0;
+
+	var->constraints = new vector<Constraint *>();
+	var->numConstr = 0;
+	myLog(LOG_TRACE, "var %s : {", name);
+	for(int i = 0; i < var->domain.size()-1; i++){
+		myLog(LOG_TRACE, "%d,", var->domain[i]);
+	}
+	myLog(LOG_TRACE, " %d };\n",var->domain.back());
+	variableQueuePush(solver->varQueue, var);
+	return var;
 }
 
 Array *solverAddArr(Solver *solver, char *arr_name, vector<int> array){
@@ -141,7 +175,7 @@ void solverParse(Solver *solver, Node *node) {
             solverParse(solver, node->left);
             solverParse(solver, node->right);
         } else if (node->token == VAR) {
-            solverAddVar(solver, node->str, node->right->num1, node->right->num2);
+            solverAddVar(solver, node->str, node->right);
         } else if (node->token == ARR) {
             list<int> temp;
             Node * array_node = node->right;

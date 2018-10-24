@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
+#include <vector>
 #include "util.h"
 #include "token.h"
 #include "node.h"
@@ -12,10 +13,11 @@
 #include "y.tab.h"
 #include "graph.h"
 
+ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode* constrNode, vector<int> &domain);
 /* OmegaSolver */
 void solverAddConstr(Solver *solver, Node *node) {
-    int lb, ub;
-    Constraint *constr = constraintNew(solver, constraintNormalise(solver, constraintNodeParse(solver, node), lb, ub));
+	vector<int> temp;
+	Constraint *constr = constraintNew(solver, constraintNormalise(solver, constraintNodeParse(solver, node), temp));
     if (!constraintNodeTautology(constr->node)) {
         solverConstraintQueuePush(solver->constrQueue, constr, solver, true);
     } else {
@@ -57,12 +59,13 @@ void solverAddConstrVarEqAt(Solver *solver, Variable * x, Variable * y, int time
 }
 
 /* OmegaSolver */
-ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &lb, int &ub) {
+ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector<int> &domain) {
     ConstraintNode *constrNode = NULL;
     ConstraintNode *constrNodeLeft = NULL;
     ConstraintNode *constrNodeRight = NULL;
     Variable *x, *y, *z;
-    int myLB, myUB, myLB2, myUB2;
+    //int myLB, myUB, myLB2, myUB2;
+	vector<int> myDM, myDM2;
 
     if (node != NULL) {
         if (node->token != IDENTIFIER && node->token != CONSTANT && node->token != ARR_IDENTIFIER && node->token != LIST_ELEMENT) {
@@ -79,13 +82,16 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
 
         if (node->token == FIRST) {
             if (node->right->token == CONSTANT) {
-                lb = node->right->num;
-                ub = node->right->num;
+                //lb = node->right->num;
+                //ub = node->right->num;
+				domain = vector<int>();	
+				domain.push_back(node->right->num);
                 constrNode = node->right;
                 myFree(node);
             } else if (node->right->token == IDENTIFIER) {
-                lb = node->right->var->lb;
-                ub = node->right->var->ub;
+                //lb = node->right->var->lb;
+                //ub = node->right->var->ub;
+				domain = node->right->var->domain;
                 constrNode = node;
             // } else if (node->right->token == NEXT ){
             //     ConstraintNode * temp_node = node->right;
@@ -108,9 +114,9 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 constraintNodeFree(node->right->right);
                 myFree(node->right);
                 node->right = constrNodeRight;
-                constrNode = constraintNormalise(solver, node, lb, ub);
+                constrNode = constraintNormalise(solver, node, domain);
             } else {
-                constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+                constrNodeRight = constraintNormalise(solver, node->right, myDM);
                 if (constrNodeRight->token == FIRST) {
                     ConstraintNode *temp = constrNodeRight->right;
                     myFree(constrNodeRight);
@@ -118,19 +124,24 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 }
                 node->right = constrNodeRight;
                 constrNode = node;
-                lb = myLB;
-                ub = myUB;
+                //lb = myLB;
+                //ub = myUB;
+				domain = myDM;
             }
         } else if (node->token == NEXT) {
             if (node->right->token == CONSTANT) {
-                lb = node->right->num;
-                ub = node->right->num;
+                //lb = node->right->num;
+                //ub = node->right->num;
+				vector<int> temp;
+				temp.push_back(node->right->num);	
+				domain = temp;
                 constrNode = node->right;
                 myFree(node);
             } else if (node->right->token == IDENTIFIER) {
-                lb = node->right->var->lb;
-                ub = node->right->var->ub;
-                x = solverAuxVarNew(solver, NULL, lb, ub);
+                //lb = node->right->var->lb;
+                //ub = node->right->var->ub;
+				domain = node->right->var->domain;
+                x = solverAuxVarNew(solver, NULL, domain);
                 solverAddConstrVarEqNext(solver, x, node->right->var);
                 myFree(node->right);
                 myFree(node);
@@ -140,58 +151,81 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 constraintNodeFree(node->right->left);
                 myFree(node->right);
                 myFree(node);
-                constrNode = constraintNormalise(solver, constrNode, lb, ub);
+                //constrNode = constraintNormalise(solver, constrNode, lb, ub);
+				constrNode = constraintNormalise(solver, constrNode, domain);
             } else {
-                constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+                //constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+				constrNodeRight = constraintNormalise(solver, node->right, myDM);
                 if (constrNodeRight->token == FIRST) {
                     myFree(node);
                     constrNode = constrNodeRight;
                 } else if (constrNodeRight->token == CONSTANT || constrNodeRight->token == IDENTIFIER) {
                     node->right = constrNodeRight;
-                    constrNode = constraintNormalise(solver, node, myLB, myUB);
+                    //constrNode = constraintNormalise(solver, node, myLB, myUB);
+					constrNode = constraintNormalise(solver, node, myDM);
+
                 } else {
-                    x = solverAuxVarNew(solver, NULL, myLB, myUB);
+                    //x = solverAuxVarNew(solver, NULL, myLB, myUB);
+					x = solverAuxVarNew(solver, NULL, myDM);
                     solverAddConstrVarEqNode(solver, x, constrNodeRight);
-                    y = solverAuxVarNew(solver, NULL, myLB, myUB);
+                    //y = solverAuxVarNew(solver, NULL, myLB, myUB);
+					y = solverAuxVarNew(solver, NULL, myDM);
+
                     solverAddConstrVarEqNext(solver, y, x);
                     constrNode = constraintNodeNew(IDENTIFIER, 0, y, NULL, NULL, NULL);
                     myFree(node);
                 }
-                lb = myLB;
-                ub = myUB;
+                //lb = myLB;
+                //ub = myUB;
+				domain = myDM;
             }
         } else if (node->token == FBY) {
             if (node->left->token == IDENTIFIER) {
-                myLB = node->left->var->lb;
-                myUB = node->left->var->ub;
+                //myLB = node->left->var->lb;
+                //myUB = node->left->var->ub;
+				myDM = node->left->var->domain;
                 y = node->left->var;
                 myFree(node->left);
             } else {
-                constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-                y = solverAuxVarNew(solver, NULL, myLB, myUB);
+                //constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
+                //y = solverAuxVarNew(solver, NULL, myLB, myUB);
+				constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+                y = solverAuxVarNew(solver, NULL, myDM);
+
                 solverAddConstrVarEqNode(solver, y, constrNodeLeft);
             }
             if (node->right->token == IDENTIFIER) {
-                myLB2 = node->right->var->lb;
-                myUB2 = node->right->var->ub;
+                //myLB2 = node->right->var->lb;
+                //myUB2 = node->right->var->ub;
+				myDM2 = node->right->var->domain;
+
                 z = node->right->var;
                 myFree(node->right);
             } else {
-                constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
-                z = solverAuxVarNew(solver, NULL, myLB2, myUB2);
+                //constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
+                //z = solverAuxVarNew(solver, NULL, myLB2, myUB2);
+				constrNodeRight = constraintNormalise(solver, node->right, myDM2);
+				z = solverAuxVarNew(solver, NULL, myDM2);
+
                 solverAddConstrVarEqNode(solver, z, constrNodeRight);
             }
-            lb = MIN(myLB, myLB2);
-            ub = MAX(myUB, myUB2);
-            x = solverAuxVarNew(solver, NULL, lb, ub);
+            //lb = MIN(myLB, myLB2);
+            //ub = MAX(myUB, myUB2);
+			//x = solverAuxVarNew(solver, NULL, lb, ub);
+			domain = myDM;
+			domain.insert(domain.end(), myDM2.begin(), myDM2.end());
+			x = solverAuxVarNew(solver, NULL, domain);
+
             solverAddConstrFirstEqFirst(solver, x, y);
             solverAddConstrVarEqNext(solver, z, x);
             constrNode = constraintNodeNew(IDENTIFIER, 0, x, NULL, NULL, NULL);
             myFree(node);
         } else if (node->token == AT) {
             if (node->left->token == CONSTANT) {
-                lb = node->left->num;
-                ub = node->left->num;
+                //lb = node->left->num;
+                //ub = node->left->num;
+				domain = vector<int>();
+				domain.push_back(node->left->num);
                 constrNode = node->left;
                 myFree(node);
             } else if (node->left->token == NEXT) {
@@ -211,33 +245,44 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 constrNode = node;
             } else {
                 if(node->left->token == IDENTIFIER) {
-                    myLB = node->left->var->lb;
-                    myUB = node->left->var->ub;
+                    //myLB = node->left->var->lb;
+                    //myUB = node->left->var->ub;
+					myDM = node->left->var->domain;
                     y = node->left->var;
                     myFree(node->left);
                 } else {
-                    constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-                    y = solverAuxVarNew(solver, NULL, myLB, myUB);
+                    //constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
+                    //y = solverAuxVarNew(solver, NULL, myLB, myUB);
+					constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+					y = solverAuxVarNew(solver, NULL, myDM);
+
                     solverAddConstrVarEqNode(solver, y, constrNodeLeft);
                 }
-                lb = myLB;
-                ub = myUB;
-                x = solverAuxVarNew(solver, NULL, lb, ub);
+                //lb = myLB;
+                //ub = myUB;
+                //x = solverAuxVarNew(solver, NULL, lb, ub);
+				domain = myDM;
+				x = solverAuxVarNew(solver, NULL, domain);
                 solverAddConstrVarEqAt(solver, x, y, node->right->num);
                 constrNode = constraintNodeNew(IDENTIFIER, 0, x, NULL, NULL, NULL);
                 myFree(node);
             } 
         } else if (node->token == IDENTIFIER || node->token == CONSTANT) {
             if (node->token == IDENTIFIER) {
-                lb = node->var->lb;
-                ub = node->var->ub;
+                //lb = node->var->lb;
+                //ub = node->var->ub;
+				domain = node->var->domain;
             } else {
-                lb = node->num;
-                ub = node->num;
+                //lb = node->num;
+                //ub = node->num;
+				domain = vector<int>();
+				domain.push_back(node->num);
             }
             constrNode = node;
         } else if (node->token == ARR_IDENTIFIER) {
-            node->right = constraintNormalise(solver, node->right, myLB, myUB);
+            //node->right = constraintNormalise(solver, node->right, myLB, myUB);
+			node->right = constraintNormalise(solver, node->right, myDM);
+			/*
             vector<int> elements = node->array->elements;
             int size = elements.size();
             lb = elements[1];
@@ -246,44 +291,68 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 lb = elements[i] < lb ? elements[i] : lb;
                 ub = elements[i] > ub ? elements[i] : ub;
             }
+			*/
+			domain = node->array->elements;
             constrNode = node;
         } else if (node->token == UNTIL_CON ) {
+			/*
             constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
             constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
+			*/
+			constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+            constrNodeRight = constraintNormalise(solver, node->right, myDM2);
+
             if (node->left->token != IDENTIFIER ){
-                x = solverAuxVarNew(solver, NULL, 0, 1);
+				
+                //x = solverAuxVarNew(solver, NULL, 0, 1);
+				vector<int> temp_dm;
+				temp_dm.push_back(0);
+				temp_dm.push_back(1);
+				x = solverAuxVarNew(solver, NULL, temp_dm);
                 node->left = constraintNodeNewVar(x);
                 solverAddConstrVarEqNode(solver, x, constrNodeLeft);
             }
             if (node->right->token != IDENTIFIER ){
-                y = solverAuxVarNew(solver, NULL, 0, 1);
+				vector<int> temp_dm;
+				temp_dm.push_back(0);
+				temp_dm.push_back(1);
+                y = solverAuxVarNew(solver, NULL, temp_dm);
                 node->right = constraintNodeNewVar(y);
                 solverAddConstrVarEqNode(solver, y, constrNodeRight);
             }
             constrNode = node;
         } else if (node->token == node->token == NOT_OP) {
-            constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
-            lb = 0;
-            ub = 1;
+            //constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+            //lb = 0;
+            //ub = 1;
+			constrNodeRight = constraintNormalise(solver, node->right, myDM);
+			domain = vector<int>();
+			domain.push_back(0);
+			domain.push_back(1);
             node->right = constrNodeRight;
             constrNode = node;
-		} else if(node->token == MAX_OP){
+		} //else if(node->token == MAX_OP){
+			else if(node->token == MAX_OP || node->token == MIN_OP){
 			ConstraintNode *list = node->right; 
 			ConstraintNode *list_node = node->right;
-			constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
-			lb = myLB;
-			ub = myUB;
+			//constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
+			//lb = myLB;
+			//ub = myUB;
+			constrNodeRight = constraintNormalise(solver,list_node->right,myDM);
+			domain = myDM;
 			list_node->right = constrNodeRight;
 			while(list_node->left!=NULL){
 				list_node = list_node->left;
-				constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
-				lb = lb < myLB ? myLB : lb;
-				ub = ub < myUB ? myUB : ub;
+				//constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
+				//lb = lb < myLB ? myLB : lb;
+				//ub = ub < myUB ? myUB : ub;
+				constrNodeRight = constraintNormalise(solver,list_node->right,myDM);
+				domain.insert(domain.end(), myDM.begin(), myDM.end());
 				list_node->right = constrNodeRight;
 			}
 			node->right=list;	
 			constrNode = node;
-		} else if(node->token == MIN_OP){
+		} /*else if(node->token == MIN_OP){
 			ConstraintNode *list = node->right; 
 			ConstraintNode *list_node = node->right;
 			constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
@@ -299,11 +368,16 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
 			}
 			node->right=list;	
 			constrNode = node;
-		} else {
+		}*/ else {
+			/*
             constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
             constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
+			*/
+			constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+            constrNodeRight = constraintNormalise(solver, node->right, myDM2);
 
             if (node->token == ABS) {
+				/*
                 if (myLB2 < 0 && myUB2 < 0) {
                     lb = -myUB2;
                     ub = -myLB2;
@@ -314,26 +388,58 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                     lb = myLB2;
                     ub = myUB2;
                 }
+				*/
+				for(int j=0; j < myDM.size();j++){
+					if(myDM[j]<0){
+						myDM[j]=-myDM[j];
+					}
+				}
+				for(int j=0; j < myDM2.size();j++){
+					if(myDM2[j]<0){
+						myDM2[j]=-myDM[j];
+					}
+				}
+				domain = myDM;
+				domain.insert(domain.end(), myDM2.begin(), myDM2.end());
             } else if (node->token == IF) {
-                lb = myLB2;
-                ub = myUB2;
+                //lb = myLB2;
+                //ub = myUB2;
+				domain = myDM2;
             } else if (node->token == THEN) {
-                lb = MIN(myLB, myLB2);
-                ub = MAX(myUB, myUB2);
+                //lb = MIN(myLB, myLB2);
+                //ub = MAX(myUB, myUB2);
+				domain = myDM;
+				domain.insert(domain.end(), myDM2.begin(), myDM2.end());
             } else if (node->token == '<' || node->token == '>' || node->token == LE_CON || node->token == GE_CON ||
                        node->token == EQ_CON || node->token == NE_CON || node->token == IMPLY_CON ||
                        node->token == LT_OP || node->token == GT_OP || node->token == LE_OP || node->token == GE_OP ||
                        node->token == EQ_OP || node->token == NE_OP ||
                        node->token == AND_OP || node->token == OR_OP) {
-                lb = 0;
-                ub = 1;
+                //lb = 0;
+                //ub = 1;
+				domain = vector<int>();
+				domain.push_back(0);
+				domain.push_back(1);
             } else if (node->token == '+') {
-                lb = myLB + myLB2;
-                ub = myUB + myUB2;
+                //lb = myLB + myLB2;
+                //ub = myUB + myUB2;
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] + myDM2[k]);
+					}
+				}
             } else if (node->token == '-') {
-                lb = myLB - myUB2;
-                ub = myUB - myLB2;
+                //lb = myLB - myUB2;
+                //ub = myUB - myLB2;
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] - myDM2[k]);
+					}
+				}
             } else if (node->token == '*') {
+				/*
                 if (myLB >= 0 && myLB2 >= 0) {
                     lb = myLB * myLB2;
                     ub = myUB * myUB2;
@@ -347,12 +453,31 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                     lb = myUB * myUB2;
                     ub = myLB * myLB2;
                 }
+				*/
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] * myDM2[k]);
+					}
+				}
             } else if (node->token == '/') {
-                lb = MY_INT_MIN;
-                ub = MY_INT_MAX;
+                //lb = MY_INT_MIN;
+                //ub = MY_INT_MAX;
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] / myDM2[k]);
+					}
+				}
             } else if (node->token == '%') {
-                lb = MY_INT_MIN;
-                ub = MY_INT_MAX;
+                //lb = MY_INT_MIN;
+                //ub = MY_INT_MAX;
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] % myDM2[k]);
+					}
+				}
 			}
 
             node->left = constrNodeLeft;
@@ -491,12 +616,19 @@ bool findSupportRe(Constraint *constr, Variable *var, int point, int index, int 
             return validate(constr);
         } else {
             bool supported = false;
+			/*
             int lb = thisVar->currLB[point];
             int ub = thisVar->currUB[point];
             for (int c = lb; !supported && c <= ub; c++) {
                 thisVar->propagateValue = c;
                 supported = validate(constr);
             }
+			*/
+			vector<int> domain = thisVar->currDM[point];
+			for(int i = 0; !supported && i < domain.size(); i++){
+				thisVar->propagateValue = domain[i];
+				supported = validate(constr);
+			}
             return supported;
         }
     } else {
@@ -504,12 +636,19 @@ bool findSupportRe(Constraint *constr, Variable *var, int point, int index, int 
             return findSupportRe(constr, var, point, index+1, numVar);
         } else {
             bool supported = false;
+			/*
             int lb = thisVar->currLB[point];
             int ub = thisVar->currUB[point];
             for (int c = lb; !supported && c <= ub; c++) {
                 thisVar->propagateValue = c;
                 supported = findSupportRe(constr, var, point, index+1, numVar);
             }
+			*/
+			vector<int> domain = thisVar->currDM[point];
+			for(int c = 0; !supported && c < domain.size(); c++){
+				thisVar->propagateValue = domain.at(c);
+				supported = findSupportRe(constr, var, point, index+1, numVar);
+			}
             return supported;
         }
     }
@@ -527,17 +666,62 @@ bool findSupport(Constraint *constr, Variable *var, int point) {
 // for each value of var, find support in context of constraint
 bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, int point) {
     bool supported = false;
-    int lb = var->currLB[point]; //get upper bound of timepoint at point
-    int ub = var->currUB[point]; // get lower bound of timepoint at point
+    //int lb = var->currLB[point]; //get upper bound of timepoint at point
+    //int ub = var->currUB[point]; // get lower bound of timepoint at point
+	vector<int> domain = var->currDM[point];
+
+
+	// if there exist duplicated value in domain, delete and rebuild domain
+	int size = domain.size();
+	for(int cur_index = 0; cur_index < size; cur_index++){
+		for(int index = size - 1; index > cur_index; index--){
+			if(domain.at(index) == domain.at(cur_index)){
+				domain.erase(domain.begin()+index);
+				size--;
+			}
+		}
+	}	
+	if(domain.size() < var->currDM[point].size()){
+		var->currDM[point] = domain;
+	}
+	
 
     myLog(LOG_DEBUG, "enforce point consistency at point :%d\n", point);
     constraintPrint(constr);
-    myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, lb, ub);
+    //myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, lb, ub);
 
+	/*
     for (int c = lb; !supported && c <= ub; c++) {
         var->propagateValue = c;
         supported = findSupport(constr, var, point);
     }
+	*/
+	size = var->currDM[point].size();
+	for(int i = 0; i < size; i++){
+		var->propagateValue = var->currDM[point].at(i);
+		supported = findSupport(constr, var, point);
+		if(!supported){
+			change = true;
+			backup_dm(&var->currDM[point]);
+			for(int j = var->currDM[point].size()-1; j>=0; j--)
+			{
+				if(var->currDM[point].at(j) == var->propagateValue){
+					var->currDM[point].erase(var->currDM[point].begin() + j);
+					size--;
+				}
+			}
+		}
+	}
+	if(var->currDM[point].size()==0){
+		supported = false;
+	} else if(var->currDM[point].size() > 0){
+		supported = true;
+	}
+	/*
+	for (int i = 0; !supported && i < domain.size(); i++){
+		var->propagateValue = domain[i];
+		supported = findSupport(constr, var, point);
+	}
 
     // If no support for lower bound then inconsistent
     if (supported) {
@@ -568,8 +752,19 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
             }
         }
     }
+	*/
 
-    myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[point], var->currUB[point]);
+    //myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[point], var->currUB[point]);
+	myLog(LOG_DEBUG, "after consistency, variable: %s, domain:{", var->name);
+	for(int i = 0; i < var->currDM[point].size() - 1; i++){
+		myLog(LOG_DEBUG, "%d, ",var->currDM[point].at(i));
+	}
+	if(var->currDM[point].size() > 0){
+		myLog(LOG_DEBUG, "%d}\n",var->currDM[point].back());
+	} else{
+		myLog(LOG_DEBUG, "} domain is empty\n");
+	}
+
     myLog(LOG_DEBUG, "supported: %d\n", supported);
     return supported;
 }
@@ -597,11 +792,13 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
     myLog(LOG_DEBUG, "enforce next consistency \n");
     constraintPrint(constr);
     bool consistent = true;
+	vector<int> temp_dm1, temp_dm2, retained_dm;
     //if variable is child var Y 
     if (var == constr->node->right->right->var) {
-        int k = solver->prefixK;
+		        int k = solver->prefixK;
         for (int c = 1; consistent && c < k; c++) {
-            myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currLB[c]);
+            /*
+			myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currLB[c]);
             if (var->currLB[c] < constr->node->left->var->currLB[c-1]) {
                 change = true;
                 backup(&var->currLB[c]);
@@ -617,13 +814,36 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
             }
             myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currUB[c]);
         }
+			*/
+			//compare the domain of child var Y and parent var X, retain their intersection
+			temp_dm1 = var->currDM[c];
+			temp_dm2 = constr->node->left->var->currDM[c-1];
+			retained_dm = vector<int> ();
+			for(int i = 0; i < temp_dm1.size(); i++){
+				for(int j = 0; j < temp_dm2.size(); j++){
+					if(temp_dm1.at(i) == temp_dm2.at(j)){
+						retained_dm.push_back(temp_dm1.at(i));
+						break;
+					}
+				}
+			}
+			if(retained_dm.size() > 0 && retained_dm.size() != temp_dm1.size()){
+				change = true;
+				backup_dm(&var->currDM[c]);
+				var->currDM[c] = retained_dm;
+			}
+			else if(retained_dm.size() == 0){
+				consistent = false;
+			}
+    	}
 
     // else if variable is parent var X 
-    } else {
+	} else {
         Variable *otherVar = constr->node->right->right->var;
         int k = solver->prefixK;
         for (int c = 0; consistent && c < k-1; c++) {
-            myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currLB[c]);
+            /*
+			myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currLB[c]);
             if (var->currLB[c] < otherVar->currLB[c+1]) {
                 change = true;
                 backup(&var->currLB[c]);
@@ -638,6 +858,26 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
                 consistent = false;
             }
             myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currUB[c]);
+			*/
+			temp_dm1 = var->currDM[c];	
+			temp_dm2 = otherVar->currDM[c+1];
+			retained_dm = vector<int> ();
+			for(int i = 0; i < temp_dm1.size(); i++){
+				for(int j = 0; j < temp_dm2.size(); j++){
+					if(temp_dm1.at(i) == temp_dm2.at(j)){
+						retained_dm.push_back(temp_dm1.at(i));
+						break;
+					}
+				}
+			}
+			if(retained_dm.size() > 0 && retained_dm.size() != temp_dm1.size()){
+				change = true;
+				backup_dm(&var->currDM[c]);
+				var->currDM[c] = retained_dm;
+			}
+			else if(retained_dm.size() == 0){
+				consistent = false;
+			}
         }
     }
     myLog(LOG_DEBUG, "exit from next consistency\n");
@@ -655,14 +895,22 @@ bool enforceUntilConsistency(Solver *solver, Constraint *constr, Variable *var, 
 
     if ( constr->expire )
         return consistent;
+	/*
     else if ( left_var->currLB[0] == left_var->currUB[0] && right_var->currLB[0] == right_var->currUB[0] ) {
         if ( right_var->currLB[0] != 1 && left_var->currLB[0] != 1 ){
             consistent = false;
         }
         return consistent;
+		
     } else {
         return consistent;
     }
+	*/
+	else{
+		/* to be finished after understanding meanings */
+		return consistent;	
+	}
+	return consistent;
 }
 
 // GAC algorithm
@@ -876,12 +1124,35 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
                 backup(&temp_constr->expire);
                 if( temp_constr->expire == 1 ){
                     varSig.push_back(1);
-                } else if( temp_constr->node->right->var->currLB[0] == 1 ) {
+                }
+				/* else if( temp_constr->node->right->var->currLB[0] == 1 ) {
                     temp_constr->expire = 1;
                     varSig.push_back(1);
-                } else {
+                }
+			   	 	else {
                     varSig.push_back(0);
                 }
+				*/
+				else{
+					vector<int> temp_dm = temp_constr->node->right->var->currDM[0];
+					// find if the minium value in domain is 1
+					int min = 0;
+					if(temp_dm.size() >= 1){
+						min = temp_dm.at(0);
+					}
+					for(int i = 0; i < temp_dm.size(); i++){
+						if(temp_dm.at(i) < min){
+							min = temp_dm.at(i);
+						}
+					}	
+					if(min == 1){
+						temp_constr->expire = 1;
+						varSig.push_back(1);
+					}
+					else{
+						varSig.push_back(0);
+					}
+				}
             }
         }
 
@@ -966,8 +1237,8 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
         levelUp();
         variableSplitLower(var);
 
-        myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
-        myLog(LOG_DEBUG, "selected: %s [%d,%d] \n", var->name, var->currLB[0], var->currUB[0]);
+        //myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
+        //myLog(LOG_DEBUG, "selected: %s [%d,%d] \n", var->name, var->currLB[0], var->currUB[0]);
 
         if (generalisedArcConsistent(solver)) {
             ok |= solverSolveRe(solver, vertex);
@@ -979,8 +1250,8 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
         levelUp();
         variableSplitUpper(var);
 
-        myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
-        myLog(LOG_DEBUG, "selected: %s [%d,%d]\n", var->name, var->currLB[0], var->currUB[0]);
+        //myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
+        //myLog(LOG_DEBUG, "selected: %s [%d,%d]\n", var->name, var->currLB[0], var->currUB[0]);
 
         if (generalisedArcConsistent(solver)) {
             ok |= solverSolveRe(solver, vertex);

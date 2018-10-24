@@ -24,12 +24,16 @@ extern unsigned long mallocCount;
 extern unsigned long freeCount;
 #endif
 
+#include<vector>
+#include<iostream>
+using namespace std;
 void *myMalloc2(size_t size, const char *func);
 void myFree2(void *ptr, const char *func);
 #define myMalloc(size) myMalloc2(size, __func__)
 #define myFree(ptr) myFree2(ptr, __func__)
 void freeMemory();
 void backup(int *addr);
+void backup_dm(vector<int> *addr);
 void levelUp();
 void levelDown();
 
@@ -54,3 +58,4 @@ void myLog(int level, char *format, ...);
 #endif*/
 
 #endif
+

@@ -2,15 +2,20 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdarg>
+#include <iostream>
+#include <vector>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/times.h>
 #include "util.h"
 
+#define DOMAIN_SIZE 16
+
 #if MEMORY
 unsigned long mallocCount = 0;
 unsigned long freeCount = 0;
 #endif
+using namespace std;
 
 /* exported */
 void *myMalloc2(size_t size, const char *func) {
@@ -45,6 +50,7 @@ void myFree2(void *ptr, const char *func) {
  */
 
 #define CHUNK_SIZE 1024
+#define DOMAIN_SIZE 16
 
 typedef struct _Chunk {
     int **addr;
@@ -55,6 +61,16 @@ typedef struct _Chunk {
 } Chunk;
 
 Chunk *memory = NULL;
+
+typedef struct _Chunk_dm{
+	vector<int> **addr;
+	vector<int> data[CHUNK_SIZE];
+	int ptr;
+	struct _Chunk_dm *prev;
+	struct _Chunk_dm *next;
+}Chunk_dm;
+
+Chunk_dm *memory_dm = NULL;
 int level = 0;
 
 Chunk *newChunk() {
@@ -68,6 +84,19 @@ Chunk *newChunk() {
     chunk->next = NULL;
 
     return chunk;
+}
+
+Chunk_dm *newChunkDm(){
+	Chunk_dm *chunk;
+	chunk = (Chunk_dm*)myMalloc(sizeof(Chunk_dm));
+	chunk->addr = (vector <int> **)myMalloc(sizeof(vector<int>*) *CHUNK_SIZE);
+	for(int i = 0; i < CHUNK_SIZE; i++){
+		chunk->data[i].reserve(DOMAIN_SIZE);
+	}
+	chunk->ptr = 0;
+	chunk->prev = NULL;
+	chunk->next = NULL;
+	return chunk;
 }
 
 void freeMemory() {
@@ -85,6 +114,21 @@ void freeMemory() {
             temp = chunk->next;
             myFree(chunk);
             chunk = temp;
+        }
+    }
+	Chunk_dm *chunk_dm, *temp_dm;
+	chunk_dm = memory_dm;
+	if(chunk_dm != NULL){
+        while (chunk_dm->prev != NULL) {
+            chunk_dm = chunk_dm->prev;
+        }
+
+        while (chunk_dm != NULL) {
+            myFree(chunk_dm->addr);
+           // myFree(chunk->data);
+            temp_dm = chunk_dm->next;
+            myFree(chunk_dm);
+            chunk_dm = temp_dm;
         }
     }
 }
@@ -114,6 +158,29 @@ void backup(int *addr) {
     }
 }
 
+void backup_dm(vector<int> *addr){
+	if(memory_dm==NULL){
+		memory_dm = newChunkDm();
+	}
+	if(addr == NULL){
+		memory_dm->addr[memory_dm->ptr] = NULL;
+		memory_dm->data[memory_dm->ptr] = vector<int>();
+		//memory_dm->data[memory->ptr].reserve(DOMAIN_SIZE);
+	} else{
+		memory_dm->addr[memory_dm->ptr] = addr;
+		memory_dm->data[memory_dm->ptr] = *addr;
+	}
+	memory_dm->ptr++;
+	if(memory_dm->ptr == CHUNK_SIZE){
+		if(memory_dm->next == NULL){
+			memory_dm->next = newChunkDm();	
+			memory_dm->next->prev = memory_dm;
+		}
+		memory_dm = memory_dm->next;
+	}
+
+}
+
 void printLevel() {
     int i;
 
@@ -127,6 +194,7 @@ void printLevel() {
 void levelUp() {
     level++;
     backup(NULL);
+	backup_dm(NULL);
 }
 
 /* exported */
@@ -143,6 +211,20 @@ void levelDown() {
         }
         memory->ptr--;
     }
+
+	if(memory_dm->ptr == 0){
+		memory_dm = memory_dm->prev;
+	}
+	memory_dm->ptr--;
+	while(memory_dm != NULL && memory_dm->addr[memory_dm->ptr] != NULL){
+		*(memory_dm->addr[memory_dm->ptr]) = memory_dm->data[memory_dm->ptr];	
+		if(memory_dm->ptr == 0){
+			memory_dm = memory_dm->prev;
+		}
+		if(memory_dm != NULL){
+			memory_dm->ptr--;
+		}
+	}
 }
 
 /* Time */

@@ -68,11 +68,11 @@ ConstraintNode *constraintNodeParse(Solver *solver, Node *node) {
                             constraintNodeParse(solver, node->left),
                             constraintNodeParse(solver, node->right));
     } else if ( node->token == AT ) {
-        constrNode = constraintNodeNew(node->token, 0, NULL, NULL, constraintNodeParse(solver, node->left), constraintNodeNew(CONSTANT, node->num1, NULL, NULL, NULL, NULL));
+        constrNode = constraintNodeNew(node->token, 0, NULL, NULL, constraintNodeParse(solver, node->left), constraintNodeNew(CONSTANT, node->num, NULL, NULL, NULL, NULL));
     } else if (node->token == ABS || node->token == FIRST || node->token == NEXT || node->token == NOT_OP  ) {
         constrNode = constraintNodeNew(node->token, 0, NULL, NULL, NULL, constraintNodeParse(solver, node->right));
     } else if (node->token == CONSTANT) {
-        constrNode = constraintNodeNewConstant(node->num1);
+        constrNode = constraintNodeNewConstant(node->num);
     } else if (node->token == IDENTIFIER) {
         constrNode = constraintNodeNew(node->token, 0,
                                        solverGetVar(solver, node->str),

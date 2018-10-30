@@ -1,4 +1,4 @@
-%token STATEMENT RANGE LIST LIST_ELEMENT
+%token STATEMENT  LIST LIST_ELEMENT
 %token VAR OBJ ARR
 %token LE_CON GE_CON EQ_CON NE_CON IMPLY_CON UNTIL_CON
 %token LT_OP GT_OP LE_OP GE_OP EQ_OP NE_OP MAX_OP MIN_OP
@@ -12,7 +12,7 @@
 #include "node.h"
 #include <sys/resource.h>
 
-#define basicNodeNew(token, left, right) nodeNew((token), NULL, 0, 0, (left), (right))
+#define basicNodeNew(token, left, right) nodeNew((token), NULL, 0, (left), (right))
 
 void solve(Node *node);
 
@@ -69,18 +69,18 @@ statement
     ;
 
 array_content
-    : CONSTANT { $$ = nodeNew(LIST, NULL, $1, 0, NULL, NULL); }
-    | array_content ',' CONSTANT { $$=nodeNew(LIST, NULL, $3, 0, $1, NULL); }
+    : CONSTANT { $$ = nodeNew(LIST, NULL, $1,  NULL, NULL); }
+    | array_content ',' CONSTANT { $$=nodeNew(LIST, NULL, $3, $1, NULL); }
     ;
 
 declaration_statement
-    : VAR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(VAR, $2, 0, 0, NULL, $5); }
-    | ARR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(ARR, $2, 0, 0, NULL, $5); }
+    : VAR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(VAR, $2, 0, NULL, $5); }
+    | ARR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(ARR, $2, 0, NULL, $5); }
     ;
 
 
 objective_statement
-    : OBJ IDENTIFIER ';' { $$ = nodeNew(OBJ, $2, 0, 0, NULL, NULL); }
+    : OBJ IDENTIFIER ';' { $$ = nodeNew(OBJ, $2, 0, NULL, NULL); }
     ;
 
 constraint_statement
@@ -160,7 +160,7 @@ multiplicative_expression
 
 at_expression
     : fby_expression { $$ = $1;}
-    | fby_expression AT CONSTANT { $$ = nodeNew(AT, NULL, $3, 0, $1, NULL); }
+    | fby_expression AT CONSTANT { $$ = nodeNew(AT, NULL, $3, $1, NULL); }
     ;
 
 fby_expression
@@ -177,9 +177,9 @@ unary_expression
     ;
 
 primary_expression
-    : IDENTIFIER { $$ = nodeNew(IDENTIFIER, $1, 0, 0, NULL, NULL); }
-    | IDENTIFIER '[' expression ']' { $$ = nodeNew(ARR_IDENTIFIER, $1, 0, 0, NULL, $3);}
-    | CONSTANT { $$ = nodeNew(CONSTANT, NULL, $1, 0, NULL, NULL); }
+    : IDENTIFIER { $$ = nodeNew(IDENTIFIER, $1, 0, NULL, NULL); }
+    | IDENTIFIER '[' expression ']' { $$ = nodeNew(ARR_IDENTIFIER, $1, 0, NULL, $3);}
+    | CONSTANT { $$ = nodeNew(CONSTANT, NULL, $1, NULL, NULL); }
     | '(' expression ')' { $$ = $2; }
     ;
 

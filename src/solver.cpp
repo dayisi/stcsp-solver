@@ -19,6 +19,22 @@
 extern int my_argc;
 extern char **my_argv;
 
+bool deleteDup(vector<int> &domain){
+	int size = domain.size();
+	for(int i = 0; i < domain.size(); i++){
+		for( int j = domain.size() - 1; j > i; j -- ){
+			if(domain.at(j) == domain.at(i)){
+				domain.erase(domain.begin() + j);	
+			}
+		}
+	}
+	bool hasDup = false;
+	if(size > domain.size()){
+		hasDup = true;
+	}
+	return hasDup;
+}
+
 // Name |-> Variable.
 Variable *solverGetVar(Solver *solver, char *name) {
     Variable *var = NULL;
@@ -55,8 +71,8 @@ Variable *solverGetFirstUnboundVar(Solver *solver) {
 					return var;
 				}		
 			}
-            var = (*(solver->varQueue))[i];
-            found = true;
+            //var = (*(solver->varQueue))[i];
+            //found = true;
         }
     }
     return var;
@@ -117,10 +133,10 @@ Solver *solverNew(int k, int l, int prefixK, char *varOrder, int printSolution, 
     return solver;
 }
 
-Variable *solverAddVar(Solver *solver, char *var_name, Node *domain_node) {
+Variable *solverAddVar(Solver *solver, char *var_name, vector<int>domain) {
     Variable *var = NULL;
 
-    var = variableNew(solver, var_name, domain_node);
+    var = variableNew(solver, var_name, domain);
     variableQueuePush(solver->varQueue, var);
 
     return var;
@@ -131,30 +147,8 @@ Variable *solverAuxVarNew(Solver *solver, char *var_name, vector<int> domain) {
     sprintf(var_name == NULL ? name : var_name, "_V%d", solver->numAuxVar);
     solver->numAuxVar++;
     //return solverAddVar(solver, var_name == NULL ? name : var_name, lb, ub);
-	Variable *var = (Variable *)myMalloc(sizeof(Variable));
-	var->solver = solver;
-	var->name = strdup(var_name == NULL ? name : var_name);
-	var->domain = domain;
-	var->prevValue = 0;
-	var->currDM = (vector<int> *)myMalloc(sizeof(vector<int>) * solver->prefixK);
-	for( int i=0; i < solver->prefixK; i++){
-		var->currDM[i] = var->domain;
-	}
-
-	var->propagateTimestamp = 0;
-	var->propagateValue = 0;
-	var->isSignature = 0;
-	var->isUntil = 0;
-
-	var->constraints = new vector<Constraint *>();
-	var->numConstr = 0;
-	myLog(LOG_TRACE, "var %s : {", name);
-	for(int i = 0; i < var->domain.size()-1; i++){
-		myLog(LOG_TRACE, "%d,", var->domain[i]);
-	}
-	myLog(LOG_TRACE, " %d };\n",var->domain.back());
-	variableQueuePush(solver->varQueue, var);
-	return var;
+	//cout<<"start aux"<<endl;
+	return solverAddVar(solver, var_name == NULL ? name : var_name, domain);
 }
 
 Array *solverAddArr(Solver *solver, char *arr_name, vector<int> array){
@@ -175,12 +169,27 @@ void solverParse(Solver *solver, Node *node) {
             solverParse(solver, node->left);
             solverParse(solver, node->right);
         } else if (node->token == VAR) {
-            solverAddVar(solver, node->str, node->right);
+			vector<int> domain =vector<int>();
+			Node *domain_node = node->right;
+			domain.push_back(domain_node->num);
+			while(domain_node->left != NULL && domain_node->left->token == LIST){
+				domain_node = domain_node->left;
+				domain.push_back(domain_node->num);
+			}
+            //solverAddVar(solver, node->str, node->right);
+			/*j
+			cout<<"detected domain:";
+			for(int i = 0; i < domain.size(); i++){
+				cout<<domain.at(i)<<" ";
+			}
+			cout<<"end of domain"<<endl;
+			*/
+			solverAddVar(solver, node->str, domain);
         } else if (node->token == ARR) {
             list<int> temp;
             Node * array_node = node->right;
             while(array_node != NULL){
-                temp.push_front(array_node->num1);
+                temp.push_front(array_node->num);
                 array_node = array_node->left;
             }
             vector<int> elements(temp.begin(), temp.end());

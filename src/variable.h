@@ -29,7 +29,8 @@ struct Variable {
 
 typedef vector<Variable *> VariableQueue;
 
-Variable *variableNew(struct Solver *solver, char *name, Node *domain_node);
+//Variable *variableNew(struct Solver *solver, char *name, Node *domain_node);
+Variable *variableNew(struct Solver *solver, char *name, vector<int> domain);
 void variableFree(Variable *var);
 
 static inline int variableGetValue(Variable *var) {

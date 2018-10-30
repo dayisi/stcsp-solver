@@ -55,10 +55,12 @@ Array *solverGetArray(Solver *solver, char *name);
 
 void solve(Node *node);
 Variable *solverAuxVarNew(Solver *solver, char *var_name, vector<int> domain);
+Variable *solverAddVar(Solver *solver, char* var_name, vector<int>domain);
 void solverAddConstrNode(Solver *solver, ConstraintNode *node);
 
 Arc *arcNew(Constraint *constr, Variable *var);
 void arcQueueFree(ArcQueue * arcs);
 bool arcQueueFind(ArcQueue *queue, Arc *arc);
+bool deleteDup(vector<int> &domain);
 
 #endif

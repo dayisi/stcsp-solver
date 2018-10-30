@@ -10,20 +10,12 @@
 #include "y.tab.h"
 using namespace std;
 
-Variable *variableNew(Solver *solver, char *name, Node *domain_node) {
+Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
     int i;
     Variable *var = (Variable *)myMalloc(sizeof(Variable));
     var->solver = solver;
     var->name = strdup(name);
 	/*
-    if (lb > ub) {
-        myLog(LOG_ERROR, "Invalid domain [%d, %d] in variable %s\n", lb, ub, name);
-        exit(1);
-    }
-
-    var->lb = lb;
-    var->ub = ub;
-	*/
 	if(!domain_node || domain_node->token != LIST){
 		myLog(LOG_ERROR, "Invalid domain in variable %s\n",name);
 	}
@@ -34,7 +26,30 @@ Variable *variableNew(Solver *solver, char *name, Node *domain_node) {
 		temp=temp->left;
 		var->domain.push_back(temp->num1);
 	}	
+	*/
+	//delete duplicate value in domain
+/*	
+	int size = domain.size();
+	//vector<int>temp_dm = domain;
+	if(size >= 1){
+		for(int i = 0; i < size; i++){
+			for(int j = size-1; j > i; j--){
+				if(domain.at(j) == domain.at(i)){
+					domain.erase(domain.begin()+j);
+					size --;
+				}
+			}
+		}
+	}
+*/
+	bool temp = deleteDup(domain);
+	var->domain = domain;
     var->prevValue = 0;
+	cout<<"var name "<<var->name<<", var domain: ";
+	for(int i = 0; i < var->domain.size(); i++){
+		cout<<var->domain.at(i)<<" ";
+	}
+	cout<<endl;
 
 	/*
     var->currLB = (int *)myMalloc(sizeof(int) * solver->prefixK);
@@ -110,7 +125,7 @@ void variableSplitUpper(Variable *var) {
 	backup_dm(&var->currDM[0]);
 	int size = var->currDM[0].size();
 	vector<int>temp_dm = vector<int> ();
-	for(int i = 0; i < size - size / 2; i++){
+	for(int i = 0; i < size / 2; i++){
 		temp_dm.push_back(var->currDM[0].back());
 		var->currDM[0].pop_back();
 	}	

@@ -13,7 +13,7 @@
 #include "y.tab.h"
 #include "graph.h"
 
-ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode* constrNode, vector<int> &domain);
+//ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode* constrNode, vector<int> &domain);
 /* OmegaSolver */
 void solverAddConstr(Solver *solver, Node *node) {
 	vector<int> temp;
@@ -82,33 +82,13 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 
         if (node->token == FIRST) {
             if (node->right->token == CONSTANT) {
-                //lb = node->right->num;
-                //ub = node->right->num;
 				domain = vector<int>();	
 				domain.push_back(node->right->num);
                 constrNode = node->right;
                 myFree(node);
             } else if (node->right->token == IDENTIFIER) {
-                //lb = node->right->var->lb;
-                //ub = node->right->var->ub;
 				domain = node->right->var->domain;
                 constrNode = node;
-            // } else if (node->right->token == NEXT ){
-            //     ConstraintNode * temp_node = node->right;
-            //     int timepoint = 0;
-            //     while(node->right != NULL){
-            //         if(node->right->token != NEXT )
-            //             break;
-            //         else {
-            //             timepoint++;
-            //             node->right = node->right->right;
-            //             myFree(temp_node);
-            //             temp_node = node->right;
-            //         }
-            //     }
-            //     constrNode = constraintNodeNew(AT, 0, NULL, NULL, node->right, constraintNodeNewConstant(timepoint) );
-            //     constrNode = constraintNormalise(solver, constrNode, myLB, myUB);
-            //     myFree(node);
             } else if (node->right->token == FBY) {
                 constrNodeRight = node->right->left;
                 constraintNodeFree(node->right->right);
@@ -124,22 +104,16 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
                 }
                 node->right = constrNodeRight;
                 constrNode = node;
-                //lb = myLB;
-                //ub = myUB;
 				domain = myDM;
             }
         } else if (node->token == NEXT) {
             if (node->right->token == CONSTANT) {
-                //lb = node->right->num;
-                //ub = node->right->num;
 				vector<int> temp;
 				temp.push_back(node->right->num);	
 				domain = temp;
                 constrNode = node->right;
                 myFree(node);
             } else if (node->right->token == IDENTIFIER) {
-                //lb = node->right->var->lb;
-                //ub = node->right->var->ub;
 				domain = node->right->var->domain;
                 x = solverAuxVarNew(solver, NULL, domain);
                 solverAddConstrVarEqNext(solver, x, node->right->var);
@@ -151,68 +125,45 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
                 constraintNodeFree(node->right->left);
                 myFree(node->right);
                 myFree(node);
-                //constrNode = constraintNormalise(solver, constrNode, lb, ub);
 				constrNode = constraintNormalise(solver, constrNode, domain);
             } else {
-                //constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
 				constrNodeRight = constraintNormalise(solver, node->right, myDM);
                 if (constrNodeRight->token == FIRST) {
                     myFree(node);
                     constrNode = constrNodeRight;
                 } else if (constrNodeRight->token == CONSTANT || constrNodeRight->token == IDENTIFIER) {
                     node->right = constrNodeRight;
-                    //constrNode = constraintNormalise(solver, node, myLB, myUB);
 					constrNode = constraintNormalise(solver, node, myDM);
-
                 } else {
-                    //x = solverAuxVarNew(solver, NULL, myLB, myUB);
 					x = solverAuxVarNew(solver, NULL, myDM);
                     solverAddConstrVarEqNode(solver, x, constrNodeRight);
-                    //y = solverAuxVarNew(solver, NULL, myLB, myUB);
 					y = solverAuxVarNew(solver, NULL, myDM);
-
                     solverAddConstrVarEqNext(solver, y, x);
                     constrNode = constraintNodeNew(IDENTIFIER, 0, y, NULL, NULL, NULL);
                     myFree(node);
                 }
-                //lb = myLB;
-                //ub = myUB;
 				domain = myDM;
             }
         } else if (node->token == FBY) {
             if (node->left->token == IDENTIFIER) {
-                //myLB = node->left->var->lb;
-                //myUB = node->left->var->ub;
 				myDM = node->left->var->domain;
                 y = node->left->var;
                 myFree(node->left);
             } else {
-                //constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-                //y = solverAuxVarNew(solver, NULL, myLB, myUB);
-				constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+                constrNodeLeft = constraintNormalise(solver, node->left, myDM);
                 y = solverAuxVarNew(solver, NULL, myDM);
-
                 solverAddConstrVarEqNode(solver, y, constrNodeLeft);
             }
             if (node->right->token == IDENTIFIER) {
-                //myLB2 = node->right->var->lb;
-                //myUB2 = node->right->var->ub;
-				myDM2 = node->right->var->domain;
-
+                myDM2 = node->right->var->domain;
                 z = node->right->var;
                 myFree(node->right);
             } else {
-                //constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
-                //z = solverAuxVarNew(solver, NULL, myLB2, myUB2);
-				constrNodeRight = constraintNormalise(solver, node->right, myDM2);
+                constrNodeRight = constraintNormalise(solver, node->right, myDM2);
 				z = solverAuxVarNew(solver, NULL, myDM2);
-
                 solverAddConstrVarEqNode(solver, z, constrNodeRight);
             }
-            //lb = MIN(myLB, myLB2);
-            //ub = MAX(myUB, myUB2);
-			//x = solverAuxVarNew(solver, NULL, lb, ub);
-			domain = myDM;
+            domain = myDM;
 			domain.insert(domain.end(), myDM2.begin(), myDM2.end());
 			x = solverAuxVarNew(solver, NULL, domain);
 
@@ -222,8 +173,6 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
             myFree(node);
         } else if (node->token == AT) {
             if (node->left->token == CONSTANT) {
-                //lb = node->left->num;
-                //ub = node->left->num;
 				domain = vector<int>();
 				domain.push_back(node->left->num);
                 constrNode = node->left;
@@ -245,22 +194,14 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
                 constrNode = node;
             } else {
                 if(node->left->token == IDENTIFIER) {
-                    //myLB = node->left->var->lb;
-                    //myUB = node->left->var->ub;
 					myDM = node->left->var->domain;
                     y = node->left->var;
                     myFree(node->left);
                 } else {
-                    //constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-                    //y = solverAuxVarNew(solver, NULL, myLB, myUB);
 					constrNodeLeft = constraintNormalise(solver, node->left, myDM);
 					y = solverAuxVarNew(solver, NULL, myDM);
-
                     solverAddConstrVarEqNode(solver, y, constrNodeLeft);
                 }
-                //lb = myLB;
-                //ub = myUB;
-                //x = solverAuxVarNew(solver, NULL, lb, ub);
 				domain = myDM;
 				x = solverAuxVarNew(solver, NULL, domain);
                 solverAddConstrVarEqAt(solver, x, y, node->right->num);
@@ -269,18 +210,13 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
             } 
         } else if (node->token == IDENTIFIER || node->token == CONSTANT) {
             if (node->token == IDENTIFIER) {
-                //lb = node->var->lb;
-                //ub = node->var->ub;
 				domain = node->var->domain;
             } else {
-                //lb = node->num;
-                //ub = node->num;
 				domain = vector<int>();
 				domain.push_back(node->num);
             }
             constrNode = node;
         } else if (node->token == ARR_IDENTIFIER) {
-            //node->right = constraintNormalise(solver, node->right, myLB, myUB);
 			node->right = constraintNormalise(solver, node->right, myDM);
 			/*
             vector<int> elements = node->array->elements;
@@ -303,9 +239,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
             constrNodeRight = constraintNormalise(solver, node->right, myDM2);
 
             if (node->left->token != IDENTIFIER ){
-				
-                //x = solverAuxVarNew(solver, NULL, 0, 1);
-				vector<int> temp_dm;
+				vector<int> temp_dm = vector<int>();
 				temp_dm.push_back(0);
 				temp_dm.push_back(1);
 				x = solverAuxVarNew(solver, NULL, temp_dm);
@@ -313,7 +247,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
                 solverAddConstrVarEqNode(solver, x, constrNodeLeft);
             }
             if (node->right->token != IDENTIFIER ){
-				vector<int> temp_dm;
+				vector<int> temp_dm = vector<int>();
 				temp_dm.push_back(0);
 				temp_dm.push_back(1);
                 y = solverAuxVarNew(solver, NULL, temp_dm);
@@ -322,17 +256,13 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
             }
             constrNode = node;
         } else if (node->token == node->token == NOT_OP) {
-            //constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
-            //lb = 0;
-            //ub = 1;
 			constrNodeRight = constraintNormalise(solver, node->right, myDM);
 			domain = vector<int>();
 			domain.push_back(0);
 			domain.push_back(1);
             node->right = constrNodeRight;
             constrNode = node;
-		} //else if(node->token == MAX_OP){
-			else if(node->token == MAX_OP || node->token == MIN_OP){
+		} else if(node->token == MAX_OP || node->token == MIN_OP){
 			ConstraintNode *list = node->right; 
 			ConstraintNode *list_node = node->right;
 			//constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
@@ -350,29 +280,21 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 				domain.insert(domain.end(), myDM.begin(), myDM.end());
 				list_node->right = constrNodeRight;
 			}
-			node->right=list;	
-			constrNode = node;
-		} /*else if(node->token == MIN_OP){
-			ConstraintNode *list = node->right; 
-			ConstraintNode *list_node = node->right;
-			constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
-			lb = myLB;
-			ub = myUB;
-			list_node->right = constrNodeRight;
-			while(list_node->left!=NULL){
-				list_node = list_node->left;
-				constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
-				lb = lb > myLB ? myLB : lb;
-				ub = ub > myUB ? myUB : ub;
-				list_node->right = constrNodeRight;
-			}
-			node->right=list;	
-			constrNode = node;
-		}*/ else {
+			bool hasDup = deleteDup(domain);
 			/*
-            constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-            constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
+			for(int i = 0; i < domain.size(); i++){
+				for(int j = domain.size()-1; j > i; j --){
+					if(domain.at(j) == domain.at(i)){
+						domain.erase(domain.begin() + j);
+					}
+				}
+			}
 			*/
+
+			node->right=list;	
+			constrNode = node;
+		}  
+		else {
 			constrNodeLeft = constraintNormalise(solver, node->left, myDM);
             constrNodeRight = constraintNormalise(solver, node->right, myDM2);
 
@@ -421,65 +343,58 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 				domain.push_back(0);
 				domain.push_back(1);
             } else if (node->token == '+') {
-                //lb = myLB + myLB2;
-                //ub = myUB + myUB2;
 				domain = vector<int>();	
 				for(int j =0; j < myDM.size(); j++){
 					for(int k = 0; k < myDM2.size(); k++){
 						domain.push_back(myDM[j] + myDM2[k]);
 					}
 				}
+				deleteDup(domain);
             } else if (node->token == '-') {
-                //lb = myLB - myUB2;
-                //ub = myUB - myLB2;
 				domain = vector<int>();	
 				for(int j =0; j < myDM.size(); j++){
 					for(int k = 0; k < myDM2.size(); k++){
 						domain.push_back(myDM[j] - myDM2[k]);
 					}
 				}
+				deleteDup(domain);
             } else if (node->token == '*') {
-				/*
-                if (myLB >= 0 && myLB2 >= 0) {
-                    lb = myLB * myLB2;
-                    ub = myUB * myUB2;
-                } else if (myLB >= 0 && myUB2 >= 0 && myLB2 < 0) {
-                    lb = myUB * myLB2;
-                    ub = myUB * myUB2;
-                } else if (myUB >= 0 && myLB < 0 && myLB2 >= 0) {
-                    lb = myLB * myLB2;
-                    ub = myUB * myUB2;
-                } else {
-                    lb = myUB * myUB2;
-                    ub = myLB * myLB2;
-                }
-				*/
+
 				domain = vector<int>();	
 				for(int j =0; j < myDM.size(); j++){
 					for(int k = 0; k < myDM2.size(); k++){
 						domain.push_back(myDM[j] * myDM2[k]);
 					}
 				}
+				deleteDup(domain);
             } else if (node->token == '/') {
-                //lb = MY_INT_MIN;
-                //ub = MY_INT_MAX;
 				domain = vector<int>();	
 				for(int j =0; j < myDM.size(); j++){
 					for(int k = 0; k < myDM2.size(); k++){
 						domain.push_back(myDM[j] / myDM2[k]);
 					}
 				}
+				deleteDup(domain);
             } else if (node->token == '%') {
-                //lb = MY_INT_MIN;
-                //ub = MY_INT_MAX;
 				domain = vector<int>();	
 				for(int j =0; j < myDM.size(); j++){
 					for(int k = 0; k < myDM2.size(); k++){
 						domain.push_back(myDM[j] % myDM2[k]);
 					}
 				}
+				deleteDup(domain);
 			}
-
+			//delete duplicate value in domains
+			bool temp = deleteDup(domain);
+			/*
+			for(int i = 0; i < domain.size(); i++){
+				for(int j = domain.size()-1; j > i; j --){
+					if(domain.at(j) == domain.at(i)){
+						domain.erase(domain.begin() + j);
+					}
+				}
+			}		
+			*/
             node->left = constrNodeLeft;
             node->right = constrNodeRight;
             constrNode = node; //constraintNodeNew(node->token, 0, NULL, constrNodeLeft, constrNodeRight);
@@ -487,6 +402,15 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
     } else {
         // myLog(LOG_ERROR, "ConstraintNode to be normalised is NULL!\n");
     }
+	/*
+	for( int j = 0; j < domain.size(); j++ ){
+		for( int k = domain.size()-1; k > j; k--){
+			if(domain.at(k) == domain.at(j)){
+				domain.erase(domain.begin()+k);
+			}
+		}
+	}
+	*/
     return constrNode;
 }
 
@@ -616,17 +540,27 @@ bool findSupportRe(Constraint *constr, Variable *var, int point, int index, int 
             return validate(constr);
         } else {
             bool supported = false;
-			/*
-            int lb = thisVar->currLB[point];
-            int ub = thisVar->currUB[point];
-            for (int c = lb; !supported && c <= ub; c++) {
-                thisVar->propagateValue = c;
-                supported = validate(constr);
-            }
-			*/
 			vector<int> domain = thisVar->currDM[point];
-			for(int i = 0; !supported && i < domain.size(); i++){
-				thisVar->propagateValue = domain[i];
+			/*
+			int size = domain.size();
+			for(int i = 0; i < size; i++){
+				for(int j = size - 1; j > i; j--){
+					if(domain.at(j) == domain.at(i)){
+						domain.erase(domain.begin() + j);
+						size--;
+					}		
+				}
+			}
+			if(domain.size() < thisVar->currDM[point].size()){
+				thisVar->currDM[point] = domain;
+			}
+			*/
+			bool hasDup = deleteDup(domain);
+			if(hasDup){
+				thisVar->currDM[point] = domain;
+			}
+			for(int i = 0; !supported && i < thisVar->currDM[point].size(); i++){
+				thisVar->propagateValue = thisVar->currDM[point].at(i);
 				supported = validate(constr);
 			}
             return supported;
@@ -636,17 +570,27 @@ bool findSupportRe(Constraint *constr, Variable *var, int point, int index, int 
             return findSupportRe(constr, var, point, index+1, numVar);
         } else {
             bool supported = false;
-			/*
-            int lb = thisVar->currLB[point];
-            int ub = thisVar->currUB[point];
-            for (int c = lb; !supported && c <= ub; c++) {
-                thisVar->propagateValue = c;
-                supported = findSupportRe(constr, var, point, index+1, numVar);
-            }
-			*/
 			vector<int> domain = thisVar->currDM[point];
-			for(int c = 0; !supported && c < domain.size(); c++){
-				thisVar->propagateValue = domain.at(c);
+			/*
+			int size = domain.size();
+			for(int i = 0; i < size; i++){
+				for(int j = size - 1; j > i; j--){
+					if(domain.at(j) == domain.at(i)){
+						domain.erase(domain.begin() + j);
+						size--;
+					}		
+				}
+			}
+			if(domain.size() < thisVar->currDM[point].size()){
+				thisVar->currDM[point] = domain;
+			}
+			*/
+			bool hasDup = deleteDup(domain);
+			if(hasDup){
+				thisVar->currDM[point] = domain;
+			}
+			for(int c = 0; !supported && c < thisVar->currDM[point].size(); c++){
+				thisVar->propagateValue = thisVar->currDM[point].at(c);
 				supported = findSupportRe(constr, var, point, index+1, numVar);
 			}
             return supported;
@@ -666,12 +610,11 @@ bool findSupport(Constraint *constr, Variable *var, int point) {
 // for each value of var, find support in context of constraint
 bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, int point) {
     bool supported = false;
-    //int lb = var->currLB[point]; //get upper bound of timepoint at point
-    //int ub = var->currUB[point]; // get lower bound of timepoint at point
 	vector<int> domain = var->currDM[point];
 
 
 	// if there exist duplicated value in domain, delete and rebuild domain
+	/*
 	int size = domain.size();
 	for(int cur_index = 0; cur_index < size; cur_index++){
 		for(int index = size - 1; index > cur_index; index--){
@@ -684,25 +627,30 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
 	if(domain.size() < var->currDM[point].size()){
 		var->currDM[point] = domain;
 	}
-	
+	*/
+	bool hasDup = deleteDup(domain);
+	if(hasDup){
+		var->currDM[point] = domain;
+	}
+
+		
 
     myLog(LOG_DEBUG, "enforce point consistency at point :%d\n", point);
     constraintPrint(constr);
     //myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, lb, ub);
 
-	/*
-    for (int c = lb; !supported && c <= ub; c++) {
-        var->propagateValue = c;
-        supported = findSupport(constr, var, point);
-    }
-	*/
-	size = var->currDM[point].size();
-	for(int i = 0; i < size; i++){
+	//size = var->currDM[point].size();
+	/*	
+	for(int i = var->currDM[point].size()-1; i >= 0; i--){
 		var->propagateValue = var->currDM[point].at(i);
 		supported = findSupport(constr, var, point);
 		if(!supported){
 			change = true;
 			backup_dm(&var->currDM[point]);
+			if(var->currDM[point].at(i) == var->propagateValue)
+				var->currDM[point].erase(var->currDM[point].begin()+i);
+			//cout<<"unsupported once"<<endl;
+			
 			for(int j = var->currDM[point].size()-1; j>=0; j--)
 			{
 				if(var->currDM[point].at(j) == var->propagateValue){
@@ -710,49 +658,30 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
 					size--;
 				}
 			}
+			
+		}
+
+	}
+	*/
+	for( int i = domain.size()-1; i >= 0; i -- ){
+		var->propagateValue = domain.at(i);
+		supported = findSupport(constr, var, point);
+		if(!supported){
+			change = true;
+			domain.erase(domain.begin()+ i);
 		}
 	}
+	if(domain.size() < var->currDM[point].size()){
+		backup_dm(&var->currDM[point]);
+		var->currDM[point] = domain;
+	}
+	
 	if(var->currDM[point].size()==0){
 		supported = false;
 	} else if(var->currDM[point].size() > 0){
 		supported = true;
 	}
-	/*
-	for (int i = 0; !supported && i < domain.size(); i++){
-		var->propagateValue = domain[i];
-		supported = findSupport(constr, var, point);
-	}
-
-    // If no support for lower bound then inconsistent
-    if (supported) {
-        if (lb != var->propagateValue) {
-            change = true;
-            backup(&var->currLB[point]);
-            var->currLB[point] = var->propagateValue;
-        }
-        supported = false;
-        lb = var->currLB[point];
-        for (int c = ub; !supported && c > lb; c--) {
-            var->propagateValue = c;
-            supported = findSupport(constr, var, point);
-        }
-
-        if (!supported) {
-            if (ub != var->currLB[point]) {
-                change = true;
-                backup(&var->currUB[point]);
-                var->currUB[point] = var->currLB[point];
-            }
-            supported = true;
-        } else {
-            if (ub != var->propagateValue) {
-                change = true;
-                backup(&var->currUB[point]);
-                var->currUB[point] = var->propagateValue;
-            }
-        }
-    }
-	*/
+	
 
     //myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[point], var->currUB[point]);
 	myLog(LOG_DEBUG, "after consistency, variable: %s, domain:{", var->name);
@@ -773,12 +702,23 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
 // Returns true if the arc (var, constr) can be made consistent at all k time points.
 bool enforcePointConsistency(Solver *solver, Constraint *constr, Variable *var, bool &change) {
     myLog(LOG_DEBUG, "solver, enforce point consistency at time point :%d\n", solver->timePoint);
+	//cout<<endl;
+	//cout<<"constr to be enforced: "<<constr->id<<endl;
+	//myPrintLevel();
     if (!constr->hasFirst) {
         bool consistent = true;
         int k = solver->prefixK;
         for (int c = 0; consistent && c < k; c++) {
             consistent = enforcePointConsistencyAt(constr, var, change, c);
+			
+			//cout<<"VAR name:"<<var->name<<" , after consistency at point "<<c<<" :domain: ";
+			//for(int i = 0; i < var->currDM[c].size(); i++){
+			//	cout<<var->currDM[c].at(i)<<" ";
+		//	}
+		//	cout<<endl;
+			
         }
+		
         return consistent;
     } else {
         return enforcePointConsistencyAt(constr, var, change, 0);
@@ -795,7 +735,7 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
 	vector<int> temp_dm1, temp_dm2, retained_dm;
     //if variable is child var Y 
     if (var == constr->node->right->right->var) {
-		        int k = solver->prefixK;
+		int k = solver->prefixK;
         for (int c = 1; consistent && c < k; c++) {
             /*
 			myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currLB[c]);
@@ -817,7 +757,40 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
 			*/
 			//compare the domain of child var Y and parent var X, retain their intersection
 			temp_dm1 = var->currDM[c];
+			/*
+			for( int i = 0; i < temp_dm1.size(); i++ ){
+				for( int j = temp_dm1.size()-1; j > i; j-- ){
+					if(temp_dm1.at(j) == temp_dm1.at(i)){
+						temp_dm1.erase(temp_dm1.begin() + j);
+					}
+				}
+			}
+			if(temp_dm1.size()<var->currDM[c].size()){
+				var->currDM[c] = temp_dm1;	
+			}
+			*/
+			bool hasDup = deleteDup(temp_dm1);
+			if(hasDup){
+				var->currDM[c] = temp_dm1;	
+			}
 			temp_dm2 = constr->node->left->var->currDM[c-1];
+			hasDup = deleteDup(temp_dm2);
+			if(hasDup){
+				constr->node->left->var->currDM[c-1] = temp_dm2;
+			}
+			/*
+			for( int i = 0; i < temp_dm2.size(); i++ ){
+				for( int j = temp_dm2.size()-1; j > i; j-- ){
+					if(temp_dm2.at(j) == temp_dm2.at(i)){
+						temp_dm2.erase(temp_dm2.begin() + j);
+					}
+				}
+			}
+			if(temp_dm2.size() < constr->node->left->var->currDM[c-1].size()){
+				constr->node->left->var->currDM[c-1] = temp_dm2;
+			}
+			*/
+
 			retained_dm = vector<int> ();
 			for(int i = 0; i < temp_dm1.size(); i++){
 				for(int j = 0; j < temp_dm2.size(); j++){
@@ -827,7 +800,18 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
 					}
 				}
 			}
-			if(retained_dm.size() > 0 && retained_dm.size() != temp_dm1.size()){
+			/*
+			int size = retained_dm.size();
+			for(int i = 0; i < size; i++){
+				for(int j = size - 1; j > i; j--){
+					if(retained_dm.at(j) == retained_dm.at(i)){
+						retained_dm.erase(retained_dm.begin()+j);
+						size--;
+					}
+				}
+			}
+			*/
+			if(retained_dm.size() > 0 && retained_dm.size() < temp_dm1.size()){
 				change = true;
 				backup_dm(&var->currDM[c]);
 				var->currDM[c] = retained_dm;
@@ -860,7 +844,39 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
             myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currUB[c]);
 			*/
 			temp_dm1 = var->currDM[c];	
+			bool hasDup = deleteDup(temp_dm1);
+			if(hasDup){
+				var->currDM[c] = temp_dm1;
+			}
+			/*
+			for( int i = 0; i < temp_dm1.size(); i++ ){
+				for( int j = temp_dm1.size()-1; j > i; j-- ){
+					if(temp_dm1.at(j) == temp_dm1.at(i)){
+						temp_dm1.erase(temp_dm1.begin() + j);
+					}
+				}
+			}
+			if(temp_dm1.size()<var->currDM[c].size()){
+				var->currDM[c] = temp_dm1;	
+			}
+			*/
 			temp_dm2 = otherVar->currDM[c+1];
+			/*
+			for( int i = 0; i < temp_dm2.size(); i++ ){
+				for( int j = temp_dm2.size() - 1; j > i; j-- ){
+					if(temp_dm2.at(j) == temp_dm2.at(i)){
+						temp_dm2.erase(temp_dm2.begin() + j);
+					}
+				}
+			}
+			if(temp_dm2.size()<otherVar->currDM[c+1].size()){
+				otherVar->currDM[c+1] = temp_dm2;	
+			}
+			*/
+			hasDup = deleteDup(temp_dm2);
+			if(hasDup){
+				otherVar->currDM[c+1] = temp_dm2;
+			}
 			retained_dm = vector<int> ();
 			for(int i = 0; i < temp_dm1.size(); i++){
 				for(int j = 0; j < temp_dm2.size(); j++){
@@ -870,7 +886,19 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
 					}
 				}
 			}
-			if(retained_dm.size() > 0 && retained_dm.size() != temp_dm1.size()){
+			/*
+			int size = retained_dm.size();
+			for(int i = 0; i < size; i++){
+				for(int j = size - 1; j > i; j--){
+					if(retained_dm.at(j) == retained_dm.at(i)){
+						retained_dm.erase(retained_dm.begin()+j);
+						size--;
+					}
+				}
+			}
+			*/
+			deleteDup(retained_dm);
+			if(retained_dm.size() > 0 && retained_dm.size() < temp_dm1.size()){
 				change = true;
 				backup_dm(&var->currDM[c]);
 				var->currDM[c] = retained_dm;
@@ -938,6 +966,7 @@ bool generalisedArcConsistent(Solver *solver) {
             Arc * temp = (*arcs)[d];
             temp->inqueue = true;
             solver->arcQueue->push_back(temp);
+			//cout<<"ARC: constr: "<<temp->constr->id<<", var name: "<<temp->var->name<<endl;
         }
     }
     // Enforce consistency
@@ -1246,7 +1275,13 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
             solver->numFails++;
         }
         levelDown();
-
+		/*
+		cout<<"after levelDown, var "<<var->name<<" has domain: ";
+		for(int i = 0; i < var->currDM[0].size(); i++){
+			cout<<var->currDM[0].at(i);
+		}
+		cout<<endl;
+		*/
         levelUp();
         variableSplitUpper(var);
 

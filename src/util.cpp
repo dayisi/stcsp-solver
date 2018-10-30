@@ -181,6 +181,9 @@ void backup_dm(vector<int> *addr){
 
 }
 
+void myPrintLevel(){
+	cout<<"level is "<<level<<endl;
+}
 void printLevel() {
     int i;
 
@@ -259,11 +262,4 @@ void myLog(int level, char *format, ...) {
 
     }
 	
-	FILE *logfile;
-	logfile = fopen("tim_log.txt", "a+");
-    va_start(args, format);
-    vfprintf(logfile, format, args);
-    va_end(args);
-    fflush(logfile);
-    fclose(logfile);
 }

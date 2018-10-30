@@ -4,7 +4,7 @@
 #include "variable.h"
 #include "solver.h"
 
-ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &lb, int &ub);
+ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector<int> &domain);
 
 void solverAddConstr(Solver *solver, Node *node);
 

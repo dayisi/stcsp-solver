@@ -35,6 +35,7 @@ void freeMemory();
 void backup(int *addr);
 void backup_dm(vector<int> *addr);
 void levelUp();
+void myPrintLevel();
 void levelDown();
 
 double cpuTime();

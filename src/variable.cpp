@@ -11,59 +11,59 @@
 using namespace std;
 
 Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
+	cout<<"variable new..."<<endl;
     int i;
-    Variable *var = (Variable *)myMalloc(sizeof(Variable));
+	Variable *var = (Variable *)myMalloc(sizeof(Variable));
+    //Variable *var = (Variable *)myMalloc(sizeof(Variable) + (sizeof(domain) + sizeof(int) * domain.capacity()) * (solver->prefixK + 1));
+
+	if(var == NULL){
+		cout<<"ERROR: out of memory"<<endl;
+		exit(1);
+	}
     var->solver = solver;
     var->name = strdup(name);
-	/*
-	if(!domain_node || domain_node->token != LIST){
-		myLog(LOG_ERROR, "Invalid domain in variable %s\n",name);
-	}
-	var->domain=vector<int>();
-    var->domain.push_back(domain_node->num1);
-	Node *temp = domain_node;
-	while(temp->left!=NULL && temp->left->token == LIST){
-		temp=temp->left;
-		var->domain.push_back(temp->num1);
-	}	
-	*/
-	//delete duplicate value in domain
-/*	
-	int size = domain.size();
-	//vector<int>temp_dm = domain;
-	if(size >= 1){
-		for(int i = 0; i < size; i++){
-			for(int j = size-1; j > i; j--){
-				if(domain.at(j) == domain.at(i)){
-					domain.erase(domain.begin()+j);
-					size --;
-				}
-			}
-		}
-	}
-*/
 	bool temp = deleteDup(domain);
 	var->domain = domain;
     var->prevValue = 0;
-	cout<<"var name "<<var->name<<", var domain: ";
-	for(int i = 0; i < var->domain.size(); i++){
-		cout<<var->domain.at(i)<<" ";
-	}
-	cout<<endl;
 
-	/*
-    var->currLB = (int *)myMalloc(sizeof(int) * solver->prefixK);
-    var->currUB = (int *)myMalloc(sizeof(int) * solver->prefixK);
-    for (i = 0; i < solver->prefixK; i++) {
-        var->currLB[i] = lb;
-        var->currUB[i] = ub;
-    }
-	*/
-	var->currDM = (vector<int> *)myMalloc(sizeof(vector<int>) * solver->prefixK);
+	cout<<"start to allocate memory"<<endl;
+	var->currDM = (vector<int> *)myMalloc((sizeof(var->domain) + sizeof(int) * var->domain.capacity()) * solver->prefixK);
+	cout << sizeof(vector<int>) << endl;
+	if(var->currDM==NULL){
+		cout<<"ERROR: out of memory"<<endl;
+		exit(1);
+	}
+	cout<<"reserve..."<<endl;
+	cout<<" domain size of variable is "<<var->domain.size()<<endl;
+	cout<<"prefixK is "<<solver->prefixK<<endl;
+	int size = var->domain.size();
+	if(size == 0){
+		size = 10;
+	}
+	cout<<"checking" << endl;
 	for(i=0; i < solver->prefixK; i++){
-		var->currDM[i].reserve(var->domain.size());
-		var->currDM[i]=var->domain;
+		//vector<int> temp_dm = vector<int>();
+		cout << "in for loop" << endl;
+		var->currDM[i] = vector<int>(size, 0);//temp_dm;
+		cout<<"to be reserved size is "<<size<<endl;
+		//var->currDM[i].reserve(size);
+		cout<<"after reservation the capacity is "<<var->currDM[i].capacity()<<endl;
+		cout<<"after reservation the size is "<<var->currDM[i].size()<<endl;
+
+		//var->currDM[i].reserve(size);
+		if(var->currDM[i].capacity() < var->domain.size() || var->currDM[i].capacity() > 1024 * 1024){
+			cout<<"ERROR: memory lack"<<endl;
+			exit(1);
+		}
+		for(int j = 0; j < var->domain.size(); j++){
+			int k = var->domain.at(j);
+			var->currDM[i][j] = k;
+			//var->currDM[i].push_back(k);
+		}
+		cout<<"size is "<<var->currDM[i].size()<<" after assign"<<endl;
+		//var->currDM[i]=var->domain;
 	}	
+	cout<<"allocate memory for domain finished"<<endl;
 
     var->propagateTimestamp = 0;
     var->propagateValue = 0;

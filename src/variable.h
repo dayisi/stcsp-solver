@@ -19,7 +19,7 @@ struct Variable {
 
     //int *currLB; // Array of k lower bounds, for enforcing prefix-k consistency.
     //int *currUB; // Array of k upper bounds, for enforcing prefix-k consistency.
-	vector<int> *currDM; //Array of k domains, for enforcing prefix-k consistency.
+	vector< vector<int> > currDM; //vector of k domains, for enforcing prefix-k consistency.
     int prevValue; // Value assigned to previous time point.
     int isSignature; // Whether the variable is in the signature of the St-CSP.
     int isUntil; // Whether the variable is in the until signature of the St-CSP.

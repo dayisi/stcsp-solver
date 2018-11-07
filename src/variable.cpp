@@ -11,10 +11,10 @@
 using namespace std;
 
 Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
-	cout<<"variable new..."<<endl;
+	//cout<<"variable new..."<<endl;
     int i;
-	Variable *var = (Variable *)myMalloc(sizeof(Variable));
-    //Variable *var = (Variable *)myMalloc(sizeof(Variable) + (sizeof(domain) + sizeof(int) * domain.capacity()) * (solver->prefixK + 1));
+	//Variable *var = (Variable *)myMalloc(sizeof(Variable));
+    Variable *var = (Variable *)myMalloc(sizeof(Variable) + (sizeof(domain) + sizeof(int) * domain.capacity()) * (solver->prefixK + 1));
 
 	if(var == NULL){
 		cout<<"ERROR: out of memory"<<endl;
@@ -23,12 +23,23 @@ Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
     var->solver = solver;
     var->name = strdup(name);
 	bool temp = deleteDup(domain);
+	//cout<<"assign domain"<<endl;
 	var->domain = domain;
+	//cout<<"succeed assignment of domain"<<endl;
     var->prevValue = 0;
+	var->currDM = vector<vector<int> >( solver->prefixK, domain);
+	for(int i = 0; i < solver->prefixK; i++){
+		for(int j = 0; j < domain.size(); j++){
+			//cout<<"in the loop"<<endl;
+			var->currDM[i].at(j) = domain.at(j);
+		}
+	}
+	//cout<<"finish initialize var->currDM"<<endl;
 
+	/*
 	cout<<"start to allocate memory"<<endl;
 	var->currDM = (vector<int> *)myMalloc((sizeof(var->domain) + sizeof(int) * var->domain.capacity()) * solver->prefixK);
-	cout << sizeof(vector<int>) << endl;
+	cout <<sizeof(var->domain) + sizeof(int) * var->domain.capacity()<< endl;
 	if(var->currDM==NULL){
 		cout<<"ERROR: out of memory"<<endl;
 		exit(1);
@@ -42,9 +53,10 @@ Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
 	}
 	cout<<"checking" << endl;
 	for(i=0; i < solver->prefixK; i++){
-		//vector<int> temp_dm = vector<int>();
+		//vector<int> temp_dm = domain;
 		cout << "in for loop" << endl;
 		var->currDM[i] = vector<int>(size, 0);//temp_dm;
+		//var->currDM[i] = temp_dm;
 		cout<<"to be reserved size is "<<size<<endl;
 		//var->currDM[i].reserve(size);
 		cout<<"after reservation the capacity is "<<var->currDM[i].capacity()<<endl;
@@ -64,6 +76,7 @@ Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
 		//var->currDM[i]=var->domain;
 	}	
 	cout<<"allocate memory for domain finished"<<endl;
+	*/
 
     var->propagateTimestamp = 0;
     var->propagateValue = 0;
@@ -91,7 +104,7 @@ void variableFree(Variable *var) {
 	//for(int i = 0; i< var->solver->prefixK; i++){
 //		free(var->currDM[i]);
 //	}
-    myFree(var->currDM);
+    //myFree(var->currDM);
     myFree(var);
 }
 

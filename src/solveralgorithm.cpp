@@ -16,13 +16,14 @@
 //ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode* constrNode, vector<int> &domain);
 /* OmegaSolver */
 void solverAddConstr(Solver *solver, Node *node) {
-	vector<int> temp;
+	vector<int> temp = vector<int>();
 	Constraint *constr = constraintNew(solver, constraintNormalise(solver, constraintNodeParse(solver, node), temp));
     if (!constraintNodeTautology(constr->node)) {
         solverConstraintQueuePush(solver->constrQueue, constr, solver, true);
     } else {
         constraintFree(constr);
     }
+	//cout<<"add constr "<<constr->id <<"succeed"<<endl;
 }
 
 /* OmegaSolver */
@@ -66,6 +67,8 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
     Variable *x, *y, *z;
     //int myLB, myUB, myLB2, myUB2;
 	vector<int> myDM, myDM2;
+	myDM = vector<int>();
+	myDM2 = vector<int>();
 
     if (node != NULL) {
         if (node->token != IDENTIFIER && node->token != CONSTANT && node->token != ARR_IDENTIFIER && node->token != LIST_ELEMENT) {
@@ -145,11 +148,14 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 				domain = myDM;
             }
         } else if (node->token == FBY) {
+			//cout<<"node token is FBY"<<endl;
             if (node->left->token == IDENTIFIER) {
 				myDM = node->left->var->domain;
                 y = node->left->var;
+				//cout<<"node->left->var->name is "<<y->name<<endl;
                 myFree(node->left);
             } else {
+				//cout<<"for left node of FYB node"<<endl;
                 constrNodeLeft = constraintNormalise(solver, node->left, myDM);
                 y = solverAuxVarNew(solver, NULL, myDM);
                 solverAddConstrVarEqNode(solver, y, constrNodeLeft);
@@ -157,20 +163,34 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
             if (node->right->token == IDENTIFIER) {
                 myDM2 = node->right->var->domain;
                 z = node->right->var;
+				//cout<<"node->right->var->name is "<<z->name<<endl;
                 myFree(node->right);
             } else {
+				//cout<<"for right node of FBY node"<<endl;
                 constrNodeRight = constraintNormalise(solver, node->right, myDM2);
+				//cout<<"normalise of right node finished"<<endl;
 				z = solverAuxVarNew(solver, NULL, myDM2);
+				//cout<<"new aux var built"<<endl;
                 solverAddConstrVarEqNode(solver, z, constrNodeRight);
+				//cout<<"right part of node finished"<<endl;
             }
+			
             domain = myDM;
-			domain.insert(domain.end(), myDM2.begin(), myDM2.end());
+			for(int i = 0; i < myDM2.size(); i++){
+				domain.push_back(myDM2.at(i));
+			}
+			deleteDup(domain);
 			x = solverAuxVarNew(solver, NULL, domain);
-
+			//cout<<"add first eq first constr..."<<endl;
             solverAddConstrFirstEqFirst(solver, x, y);
+			//cout<<"end of add first eq first connstr"<<endl;
+			//cout<<"add var eq next constr..."<<endl;
             solverAddConstrVarEqNext(solver, z, x);
+			//cout<<"end of add var eq next constr"<<endl;
             constrNode = constraintNodeNew(IDENTIFIER, 0, x, NULL, NULL, NULL);
+			//cout<<"end of normalise of FBY"<<endl;
             myFree(node);
+			//cout<<"end of free node"<<endl;
         } else if (node->token == AT) {
             if (node->left->token == CONSTANT) {
 				domain = vector<int>();
@@ -214,6 +234,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
             } else {
 				domain = vector<int>();
 				domain.push_back(node->num);
+				//cout<<"CONSTANT node has value "<<node->num<<endl;
             }
             constrNode = node;
         } else if (node->token == ARR_IDENTIFIER) {
@@ -323,15 +344,18 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 				}
 				domain = myDM;
 				domain.insert(domain.end(), myDM2.begin(), myDM2.end());
+				deleteDup(domain);
             } else if (node->token == IF) {
                 //lb = myLB2;
                 //ub = myUB2;
 				domain = myDM2;
+				deleteDup(domain);
             } else if (node->token == THEN) {
                 //lb = MIN(myLB, myLB2);
                 //ub = MAX(myUB, myUB2);
 				domain = myDM;
 				domain.insert(domain.end(), myDM2.begin(), myDM2.end());
+				deleteDup(domain);
             } else if (node->token == '<' || node->token == '>' || node->token == LE_CON || node->token == GE_CON ||
                        node->token == EQ_CON || node->token == NE_CON || node->token == IMPLY_CON ||
                        node->token == LT_OP || node->token == GT_OP || node->token == LE_OP || node->token == GE_OP ||
@@ -342,6 +366,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 				domain = vector<int>();
 				domain.push_back(0);
 				domain.push_back(1);
+				//cout<<"end of constr with EQ_CON"<<endl;
             } else if (node->token == '+') {
 				domain = vector<int>();	
 				for(int j =0; j < myDM.size(); j++){
@@ -816,7 +841,7 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
 				backup_dm(&var->currDM[c]);
 				var->currDM[c] = retained_dm;
 			}
-			else if(retained_dm.size() == 0){
+			if(retained_dm.size() == 0){
 				consistent = false;
 			}
     	}
@@ -920,12 +945,13 @@ bool enforceUntilConsistency(Solver *solver, Constraint *constr, Variable *var, 
     // if variable is right var Y
     Variable * left_var = constr->node->left->var;
     Variable * right_var = constr->node->right->var;
-
+	deleteDup(left_var->currDM[0]);
+	deleteDup(right_var->currDM[0]);
     if ( constr->expire )
         return consistent;
-	/*
-    else if ( left_var->currLB[0] == left_var->currUB[0] && right_var->currLB[0] == right_var->currUB[0] ) {
-        if ( right_var->currLB[0] != 1 && left_var->currLB[0] != 1 ){
+	
+    else if ( left_var->currDM[0].size() == 1 && right_var->currDM[0].size() == 1 ) {
+        if ( right_var->currDM[0].at(0) != 1 && left_var->currDM[0].at(0) != 1 ){
             consistent = false;
         }
         return consistent;
@@ -933,16 +959,13 @@ bool enforceUntilConsistency(Solver *solver, Constraint *constr, Variable *var, 
     } else {
         return consistent;
     }
-	*/
-	else{
-		/* to be finished after understanding meanings */
-		return consistent;	
-	}
+	
 	return consistent;
 }
 
 // GAC algorithm
 bool generalisedArcConsistent(Solver *solver) {
+	cout<<"one gac"<<endl;
     myLog(LOG_TRACE, "enter generalisedArcConsistent\n");
     bool consistent = true; // consistent is to check whether the consistency is satisfied
     bool change = false; // change is to check whether the range has changed
@@ -970,6 +993,7 @@ bool generalisedArcConsistent(Solver *solver) {
         }
     }
     // Enforce consistency
+	cout<<"general arc start to prepare consistency"<<endl;
     while (consistent && !solver->arcQueue->empty()) {
         Arc *arc = solver->arcQueue->front();
         solver->arcQueue->pop_front();
@@ -983,20 +1007,24 @@ bool generalisedArcConsistent(Solver *solver) {
         } else if (constr->type == CONSTR_POINT) {
             consistent = enforcePointConsistency(solver, constr, var, change);
         } else if (constr->type == CONSTR_UNTIL ) {
+			//cout<<"until constraint consistency"<<endl;
             consistent = enforceUntilConsistency(solver, constr, var, change);
         } else if (constr->type == CONSTR_AT ) {
             // lazy evaluation for constr_at 
             // constraint translate <var>@0 to first <var>
             consistent = true;
         }
-
+		//cout<<"enforce arc and get result"<<endl;
         if (!consistent) {
             myLog(LOG_DEBUG, "inconsistent variable: %s\n", var->name);
             constraintNodeLogPrint(constr->node, solver);
             myLog(LOG_DEBUG, ";\n");
         }
-
+		//cout<<"enforce done, continue..."<<endl;
+		//cout<<"consistency: "<<consistent<<endl;
+		//cout<<"change: "<<change<<endl;
         if (consistent && change) {
+			//cout<<"fix change"<<endl;
             // Push in relevant arcs
             if(strcmp(var->name, "_V1") == 0){
                 myLog(LOG_DEBUG, "constraintID: %d\n", solver->constraintID);
@@ -1021,16 +1049,18 @@ bool generalisedArcConsistent(Solver *solver) {
                 }
             }
         }
+		//cout<<"after deal enforce arc result"<<endl;
         arc->inqueue = false;
         change = false;
     }
-
+	cout<<"arc done "<<endl;
     while (!solver->arcQueue->empty()) {
         Arc *arc = solver->arcQueue->front();
         solver->arcQueue->pop_front();
         arc->inqueue = false;
     }
-    myLog(LOG_TRACE, "exit generalisedArcConsistent, consistent: %d\n",consistent);
+	cout<<"one gac finished..."<<endl;
+    //myLog(LOG_TRACE, "exit generalisedArcConsistent, consistent: %d\n",consistent);
     return consistent;
 }
 
@@ -1060,6 +1090,7 @@ void solverOut(Solver *solver) {
 
 /* OmegaSolver */
 int solverSolveRe(Solver *solver, Vertex *vertex) {
+	cout<<"sovlerRe"<<endl;
     Vertex *temp;
     Edge *edge;
     bool ok = false;
@@ -1207,8 +1238,10 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
             // myLog(LOG_DEBUG, "Previous value\n");
 
             if (generalisedArcConsistent(solver)) {
+				//cout<<"after generalised Arc consistency and continue solveRe"<<endl;
                 myLog(LOG_DEBUG, "After consistency1\n");
                 ok = solverSolveRe(solver, temp);
+
             } else {
                 myLog(LOG_DEBUG, "After consistency2\n");
                 solver->numFails++;
@@ -1261,20 +1294,26 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
             myLog(LOG_TRACE, "After denote vertex as failure\n");
         }
     } else {
+		//cout<<"unbounded var"<<endl;
         // if there are unbound first variable, split the variable to upper half range and lower half range
         // and sovle the corresponding new stream CSP
         levelUp();
         variableSplitLower(var);
+		//cout<<"after split lower"<<endl;
 
         //myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
         //myLog(LOG_DEBUG, "selected: %s [%d,%d] \n", var->name, var->currLB[0], var->currUB[0]);
 
         if (generalisedArcConsistent(solver)) {
+			//cout<<"splitlower and arc consistent"<<endl;
             ok |= solverSolveRe(solver, vertex);
+			//cout<<"a solveRe done"<<endl;
         } else {
             solver->numFails++;
         }
+		//cout<<"start to level down and return back"<<endl;
         levelDown();
+		//cout<<"succeed to return back"<<endl;	
 		/*
 		cout<<"after levelDown, var "<<var->name<<" has domain: ";
 		for(int i = 0; i < var->currDM[0].size(); i++){
@@ -1282,6 +1321,7 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
 		}
 		cout<<endl;
 		*/
+		//cout<<"level down and start to split upper"<<endl;
         levelUp();
         variableSplitUpper(var);
 
@@ -1295,16 +1335,17 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
         }
         levelDown();
     }
-
+	cout<<"end of one solveRe"<<endl;
     return ok;
 }
 
 // Entry point from solve() in solver.cpp.
 double solverSolve(Solver *solver, bool testing) {
+	//cout<<"prepare to solve"<<endl;
     //solverPrint(solver);
     solver->solveTime = cpuTime();
     solver->seenConstraints->push_back(solver->constrQueue);
-
+	//cout<<"in Solver Solve"<<endl;
     //create root node for solving  
     vector<int> temp;
     Signature *signature = new Signature(temp, 0);
@@ -1322,8 +1363,11 @@ double solverSolve(Solver *solver, bool testing) {
     }
 
     levelUp();
+	//cout<<"start to gac"<<endl;
     if (generalisedArcConsistent(solver)) {
+		//cout<<"succeed to gac, start to solve"<<endl;
         solverSolveRe(solver, solver->graph->root);
+		//cout<<"succeed solved"<<endl;
     } else {
         solver->numFails++;
     }

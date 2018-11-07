@@ -147,7 +147,7 @@ Variable *solverAuxVarNew(Solver *solver, char *var_name, vector<int> domain) {
     sprintf(var_name == NULL ? name : var_name, "_V%d", solver->numAuxVar);
     solver->numAuxVar++;
     //return solverAddVar(solver, var_name == NULL ? name : var_name, lb, ub);
-	//cout<<"start aux"<<endl;
+	//cout<<"add aux var..."<<endl;
 	return solverAddVar(solver, var_name == NULL ? name : var_name, domain);
 }
 
@@ -177,13 +177,7 @@ void solverParse(Solver *solver, Node *node) {
 				domain.push_back(domain_node->num);
 			}
             //solverAddVar(solver, node->str, node->right);
-			/*j
-			cout<<"detected domain:";
-			for(int i = 0; i < domain.size(); i++){
-				cout<<domain.at(i)<<" ";
-			}
-			cout<<"end of domain"<<endl;
-			*/
+			
 			solverAddVar(solver, node->str, domain);
         } else if (node->token == ARR) {
             list<int> temp;
@@ -195,6 +189,7 @@ void solverParse(Solver *solver, Node *node) {
             vector<int> elements(temp.begin(), temp.end());
             solverAddArr(solver, node->str, elements);
         } else { /* assume to be constraint */
+			//cout<<"start to add constraint"<<endl;
             solverAddConstr(solver, node);
             //solverAddConstrNode(solver, constraintNodeParse(solver, node));
         }
@@ -315,7 +310,9 @@ void solve(Node *node) {
     initTimeStart = cpuTime();
     if (node != NULL) {
         // parse the statement list
+		//cout<<"start to parse"<<endl;
         solverParse(solver, node);
+		//cout<<"succeed parse"<<endl;
         solver->initTime = cpuTime() - initTimeStart;
         //for debug: print out the variable
         int size = solver->varQueue->size();

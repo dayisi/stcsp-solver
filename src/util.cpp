@@ -9,7 +9,7 @@
 #include <sys/times.h>
 #include "util.h"
 
-#define DOMAIN_SIZE 16
+#define DOMAIN_SIZE 16 
 
 #if MEMORY
 unsigned long mallocCount = 0;
@@ -88,8 +88,16 @@ Chunk *newChunk() {
 
 Chunk_dm *newChunkDm(){
 	Chunk_dm *chunk;
-	chunk = (Chunk_dm*)myMalloc(sizeof(Chunk_dm));
+	chunk = (Chunk_dm*)myMalloc(sizeof(Chunk_dm) + sizeof(int)  * DOMAIN_SIZE * CHUNK_SIZE + sizeof(vector<int>) * CHUNK_SIZE);
+	if(chunk == NULL){
+		cout<<"ERROR: out of memory!"<<endl;
+		exit(1);
+	}
 	chunk->addr = (vector <int> **)myMalloc(sizeof(vector<int>*) *CHUNK_SIZE);
+	if(chunk->addr == NULL){
+		cout<<"ERROR: out of memory"<<endl;
+		exit(1);
+	}
 	for(int i = 0; i < CHUNK_SIZE; i++){
 		chunk->data[i].reserve(DOMAIN_SIZE);
 	}
@@ -202,6 +210,7 @@ void levelUp() {
 
 /* exported */
 void levelDown() {
+	//cout<<"start level down..."<<endl;
     level--;
     if (memory->ptr == 0) {
         memory = memory->prev;
@@ -216,7 +225,9 @@ void levelDown() {
     }
 
 	if(memory_dm->ptr == 0){
+		//cout<<"memory_dm is root and change to prev memory_dm"<<endl;
 		memory_dm = memory_dm->prev;
+		//cout<<"succeed to change memory_dm"<<endl;
 	}
 	memory_dm->ptr--;
 	while(memory_dm != NULL && memory_dm->addr[memory_dm->ptr] != NULL){
@@ -228,6 +239,7 @@ void levelDown() {
 			memory_dm->ptr--;
 		}
 	}
+	//cout<<"end of level down..."<<endl;
 }
 
 /* Time */

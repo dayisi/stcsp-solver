@@ -10,13 +10,18 @@
 #include "variable.h"
 
 ConstraintNode *constraintNodeNew(int token, int num, Variable *var, Array* array, ConstraintNode *left, ConstraintNode *right) {
+	//cout<<"start of constraintNodeNew"<<endl;
     ConstraintNode *node = (ConstraintNode *)myMalloc(sizeof(ConstraintNode));
+	if(node == NULL){
+		cout<<"ERROR: out of memory"<<endl;
+	}
     node->token = token;
     node->num = num;
     node->var = var;
     node->array = array;
     node->left = left;
     node->right = right;
+	//cout<<"end of constraintNodeNew"<<endl;
     return node;
 }
 
@@ -95,6 +100,7 @@ ConstraintNode *constraintNodeParse(Solver *solver, Node *node) {
         myLog(LOG_ERROR, "Unknown token: %d\n", node->token);
         exit(1);
     }
+	//cout<<"finished constr node parse"<<endl;
     return constrNode;
 }
 
@@ -175,7 +181,7 @@ void constraintNodeLogPrint(ConstraintNode *node, Solver *solver) {
 }
 
 Constraint *constraintNew(Solver *solver, ConstraintNode *node, int expire) {
-
+	//cout<<" start to build constraint node"<<endl;
     Constraint *constr = (Constraint *)myMalloc(sizeof(Constraint));
     constr->solver = solver;
     constr->node = node;
@@ -184,6 +190,7 @@ Constraint *constraintNew(Solver *solver, ConstraintNode *node, int expire) {
     constr->numVar = 0;
     constr->hasFirst = false;
     constr->expire = expire;
+	//cout<<"end of build constraint node"<<endl;
     return constr;
 }
 

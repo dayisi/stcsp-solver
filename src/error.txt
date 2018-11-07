@@ -1,0 +1,4 @@
+Unknown argument: ?
+Unknown argument: ?
+Error: not enough memory! Malloc-ed in variableNew
+Variable 'A0' has not been defined.

@@ -107,6 +107,7 @@ Solver *solverNew(int k, int l, int prefixK, char *varOrder, int printSolution, 
     solver->numUntil = 0;
     solver->numNodes = 0;
     solver->numFails = 0;
+	solver->numStates = 0;
     solver->numSolutions = 0;
     solver->numDominance = 0;
     solver->propagateTimestamp = 0;

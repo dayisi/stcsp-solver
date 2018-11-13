@@ -13,6 +13,8 @@
 #include "y.tab.h"
 #include "graph.h"
 
+int test_num = 0;
+
 //ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode* constrNode, vector<int> &domain);
 /* OmegaSolver */
 void solverAddConstr(Solver *solver, Node *node) {
@@ -442,6 +444,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 /* OmegaSolver */
 // this recursive function is to evaluate the expression in constraint and return the value to upper
 int solverValidateRe(ConstraintNode *node, bool & valid) {
+	//cout<<"in solverValidateRe"<<endl;
     int left = 0;
     int right = 0;
     int temp = 0;
@@ -546,6 +549,7 @@ int solverValidateRe(ConstraintNode *node, bool & valid) {
 			} 
         }
     }
+	//cout<<"end of one validateRe"<<endl;
     return res;
 }
 
@@ -688,6 +692,7 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
 
 	}
 	*/
+	//cout<<"start to find support"<<endl;
 	for( int i = domain.size()-1; i >= 0; i -- ){
 		var->propagateValue = domain.at(i);
 		supported = findSupport(constr, var, point);
@@ -696,19 +701,25 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
 			domain.erase(domain.begin()+ i);
 		}
 	}
+	//cout<<"after find support"<<endl;
 	if(domain.size() < var->currDM[point].size()){
+		//cout<<"change and backup"<<endl;
 		backup_dm(&var->currDM[point]);
 		var->currDM[point] = domain;
+		//cout<<"finish backup"<<endl;
 	}
 	
+	//cout<<"assign support"<<endl;
 	if(var->currDM[point].size()==0){
 		supported = false;
 	} else if(var->currDM[point].size() > 0){
 		supported = true;
 	}
 	
+	//cout<<"log..."<<endl;
 
     //myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[point], var->currUB[point]);
+	/*
 	myLog(LOG_DEBUG, "after consistency, variable: %s, domain:{", var->name);
 	for(int i = 0; i < var->currDM[point].size() - 1; i++){
 		myLog(LOG_DEBUG, "%d, ",var->currDM[point].at(i));
@@ -718,7 +729,9 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
 	} else{
 		myLog(LOG_DEBUG, "} domain is empty\n");
 	}
-
+	*/
+	//cout<<"end of log..."<<endl;
+	//cout<<"finish find support, return then"<<endl;
     myLog(LOG_DEBUG, "supported: %d\n", supported);
     return supported;
 }
@@ -965,7 +978,9 @@ bool enforceUntilConsistency(Solver *solver, Constraint *constr, Variable *var, 
 
 // GAC algorithm
 bool generalisedArcConsistent(Solver *solver) {
-	cout<<"one gac"<<endl;
+	test_num ++;
+	//cout<<test_num<<" times in generalisedArcConsistent"<<endl;
+//	cout<<"one gac"<<endl;
     myLog(LOG_TRACE, "enter generalisedArcConsistent\n");
     bool consistent = true; // consistent is to check whether the consistency is satisfied
     bool change = false; // change is to check whether the range has changed
@@ -993,7 +1008,7 @@ bool generalisedArcConsistent(Solver *solver) {
         }
     }
     // Enforce consistency
-	cout<<"general arc start to prepare consistency"<<endl;
+	//cout<<"general arc start to prepare consistency"<<endl;
     while (consistent && !solver->arcQueue->empty()) {
         Arc *arc = solver->arcQueue->front();
         solver->arcQueue->pop_front();
@@ -1003,11 +1018,13 @@ bool generalisedArcConsistent(Solver *solver) {
 
         // Enforce arc
         if (constr->type == CONSTR_NEXT) {
+			//cout<<"enforce next consistency"<<endl;
             consistent = enforceNextConsistency(solver, constr, var, change);
         } else if (constr->type == CONSTR_POINT) {
+			//cout<<"enforce point consistency"<<endl;
             consistent = enforcePointConsistency(solver, constr, var, change);
         } else if (constr->type == CONSTR_UNTIL ) {
-			//cout<<"until constraint consistency"<<endl;
+			//cout<<"enforce until constraint consistency"<<endl;
             consistent = enforceUntilConsistency(solver, constr, var, change);
         } else if (constr->type == CONSTR_AT ) {
             // lazy evaluation for constr_at 
@@ -1053,13 +1070,13 @@ bool generalisedArcConsistent(Solver *solver) {
         arc->inqueue = false;
         change = false;
     }
-	cout<<"arc done "<<endl;
+	//cout<<"arc done "<<endl;
     while (!solver->arcQueue->empty()) {
         Arc *arc = solver->arcQueue->front();
         solver->arcQueue->pop_front();
         arc->inqueue = false;
     }
-	cout<<"one gac finished..."<<endl;
+	//cout<<"one gac finished..."<<endl;
     //myLog(LOG_TRACE, "exit generalisedArcConsistent, consistent: %d\n",consistent);
     return consistent;
 }
@@ -1090,13 +1107,14 @@ void solverOut(Solver *solver) {
 
 /* OmegaSolver */
 int solverSolveRe(Solver *solver, Vertex *vertex) {
-	cout<<"sovlerRe"<<endl;
+	//cout<<"sovlerRe"<<endl;
     Vertex *temp;
     Edge *edge;
     bool ok = false;
 
     Variable *var = solverGetFirstUnboundVar(solver);
     if (var == NULL) {
+		solver->numStates++;
       // if there is no variables left, start to solve the instanteous CSP and generate new child node
         int size = solver->varQueue->size();
         myLog(LOG_TRACE, "Before level up\n");
@@ -1335,7 +1353,7 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
         }
         levelDown();
     }
-	cout<<"end of one solveRe"<<endl;
+	//cout<<"end of one solveRe"<<endl;
     return ok;
 }
 
@@ -1400,7 +1418,7 @@ double solverSolve(Solver *solver, bool testing) {
 
     if (!testing) {
         // init_time, var, con, dom, node, fail, solve_time, processTime
-        printf("%.2f\t%d\t%d\t%d\t%d\t%d\t%.2f\t%.5f\n", solver->initTime, (int) solver->varQueue->size(), (int) solver->constrQueue->size(), solver->numDominance, solver->numNodes, solver->numFails, solver->solveTime, solver->processTime);
+        printf("solver->initTime: %.2f\nsolver->varQueue->size(): %d\nsolver->constrQueue->size(): %d\nsolver->numDominance: %d\nsolver->numNodes: %d\nsolver->numFails: %d\nsolver->numStates: %d\nsolver->solverTime: %.2f\nsolver->processTime%.5f\n", solver->initTime, (int) solver->varQueue->size(), (int) solver->constrQueue->size(), solver->numDominance, solver->numNodes, solver->numFails, solver->numStates, solver->solveTime, solver->processTime);
         fflush(stdout);
     }
     return solver->solveTime + solver->processTime;

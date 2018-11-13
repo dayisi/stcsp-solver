@@ -27,6 +27,7 @@ struct Solver {
     int numAuxVar; // Number of auxiliary variables introduced in normalisation.
     int numNodes; // Number of states in the output automaton.
     int numFails; // Number of failures encountered. Note that a better consistency notion might give a lower numFails.
+	int numStates; // Number of states with no unbounded variables;
     int numSolutions; // Not used?
     double initTime; // Time taken for initialisation, i.e. parsing AST into constraint representation.
     double solveTime; // Time for solver to taken for solve the St-CSP.

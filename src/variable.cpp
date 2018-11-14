@@ -22,7 +22,7 @@ Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
 	}
     var->solver = solver;
     var->name = strdup(name);
-	bool temp = deleteDup(domain);
+	deleteDup(domain);
 	//cout<<"assign domain"<<endl;
 	var->domain = domain;
 	//cout<<"succeed assignment of domain"<<endl;

@@ -64,9 +64,7 @@ Chunk *memory = NULL;
 
 typedef struct _Chunk_dm{
 	vector<int> **addr;
-	//vector<int> data[CHUNK_SIZE];
-	//vector< vector<int> > data(CHUNK_SIZE, vector<int>(DOMAIN_SIZE, 0))
-	vector< vector<int> > data;
+	vector<int> data[CHUNK_SIZE];
 	int ptr;
 	struct _Chunk_dm *prev;
 	struct _Chunk_dm *next;
@@ -101,15 +99,7 @@ Chunk_dm *newChunkDm(){
 		exit(1);
 	}
 	for(int i = 0; i < CHUNK_SIZE; i++){
-		vector<int> temp(DOMAIN_SIZE, 0);
-		chunk->data.push_back(temp);
-	}
-	for(int i = 0; i < CHUNK_SIZE; i++){
-		for(int j = 0;  j < DOMAIN_SIZE; j++){
-			chunk->data[i].pop_back();
-		}
-		//cout<<"capacity is "<<chunk->data[i].capacity()<<endl;
-
+		chunk->data[i].reserve(DOMAIN_SIZE);
 	}
 	chunk->ptr = 0;
 	chunk->prev = NULL;

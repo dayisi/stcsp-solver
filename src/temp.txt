@@ -1,0 +1,9 @@
+solver->initTime: 0.00
+solver->varQueue->size(): 43
+solver->constrQueue->size(): 55
+solver->numDominance: 72080
+solver->numNodes: 10297
+solver->numFails: 0
+solver->numStates: 82376
+solver->solverTime: 145.95
+solver->processTime0.12000

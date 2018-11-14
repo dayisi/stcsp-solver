@@ -303,7 +303,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 				domain.insert(domain.end(), myDM.begin(), myDM.end());
 				list_node->right = constrNodeRight;
 			}
-			bool hasDup = deleteDup(domain);
+			deleteDup(domain);
 			/*
 			for(int i = 0; i < domain.size(); i++){
 				for(int j = domain.size()-1; j > i; j --){
@@ -412,7 +412,7 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector
 				deleteDup(domain);
 			}
 			//delete duplicate value in domains
-			bool temp = deleteDup(domain);
+			deleteDup(domain);
 			/*
 			for(int i = 0; i < domain.size(); i++){
 				for(int j = domain.size()-1; j > i; j --){

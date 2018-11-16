@@ -12,14 +12,14 @@ struct Variable {
     char *name; // Name of the variable in the constraint program. char * because lexer is in C.
     //int lb; // Lower bound.
     //int ub; // Upper boudn.
-	vector<int> domain; // domain of variable.
+	vector<int> *domain; // ptr to a vector, which contains domain of variable.
 
     ConstraintQueue *constraints; // List of constraints the variable is involved in.
     int numConstr; // Number of such constraints.
 
     //int *currLB; // Array of k lower bounds, for enforcing prefix-k consistency.
     //int *currUB; // Array of k upper bounds, for enforcing prefix-k consistency.
-	vector< vector<int> > currDM; //vector of k domains, for enforcing prefix-k consistency.
+	vector< vector<int> > *currDM; //vector of k domains, for enforcing prefix-k consistency.
     int prevValue; // Value assigned to previous time point.
     int isSignature; // Whether the variable is in the signature of the St-CSP.
     int isUntil; // Whether the variable is in the until signature of the St-CSP.
@@ -34,17 +34,20 @@ Variable *variableNew(struct Solver *solver, char *name, vector<int> domain);
 void variableFree(Variable *var);
 
 static inline int variableGetValue(Variable *var) {
-    //if (var->currLB[0] != var->currUB[0]) {
-	if(var->currDM[0].size() > 1){
-		int temp_val = var->currDM[0].at(0);
-		for(int i = 0; i < var->currDM[0].size(); i++){
-        	if(temp_val != var->currDM[0].at(i)){
+	if(var->currDM->at(0).size() > 1){
+		int temp_val = var->currDM->at(0).at(0);
+		for(int i = 0; i < var->currDM->at(0).size(); i++){
+        	if(temp_val != var->currDM->at(0).at(i)){
 				myLog(LOG_WARNING, "%s is not bounded yet.\n", var->name);
 				break;
 			}
     	}
-	}
-    return var->currDM[0].at(0);
+	} 
+    if(var->currDM->at(0).size()==0){
+        cout<<"error, no domain"<<endl;
+        exit(1);
+    }
+    return var->currDM->at(0).at(0);
 }
 
 void variableSplitLower(Variable *var);

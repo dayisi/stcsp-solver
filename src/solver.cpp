@@ -62,10 +62,10 @@ Variable *solverGetFirstUnboundVar(Solver *solver) {
     for (int i = 0; !found && i < size; i++) {
         //if ((*(solver->varQueue))[i]->currLB[0] < (*(solver->varQueue))[i]->currUB[0]) {
 		
-		if ((*(solver->varQueue))[i]->currDM[0].size() > 1) {
-			int temp_num = 	(*(solver->varQueue))[i]->currDM[0].front();
-			for(int j = 1; j<(*(solver->varQueue))[i]->currDM[0].size();j++){
-				if(temp_num != (*(solver->varQueue))[i]->currDM[0].at(j)){
+		if ((*(solver->varQueue))[i]->currDM->at(0).size() > 1) {
+			int temp_num = 	(*(solver->varQueue))[i]->currDM->at(0).front();
+			for(int j = 1; j<(*(solver->varQueue))[i]->currDM->at(0).size();j++){
+				if(temp_num != (*(solver->varQueue))[i]->currDM->at(0).at(j)){
 					var = (*(solver->varQueue))[i];
 					found = true;
 					return var;
@@ -148,7 +148,6 @@ Variable *solverAuxVarNew(Solver *solver, char *var_name, vector<int> domain) {
     sprintf(var_name == NULL ? name : var_name, "_V%d", solver->numAuxVar);
     solver->numAuxVar++;
     //return solverAddVar(solver, var_name == NULL ? name : var_name, lb, ub);
-	//cout<<"add aux var..."<<endl;
 	return solverAddVar(solver, var_name == NULL ? name : var_name, domain);
 }
 
@@ -190,7 +189,6 @@ void solverParse(Solver *solver, Node *node) {
             vector<int> elements(temp.begin(), temp.end());
             solverAddArr(solver, node->str, elements);
         } else { /* assume to be constraint */
-			//cout<<"start to add constraint"<<endl;
             solverAddConstr(solver, node);
             //solverAddConstrNode(solver, constraintNodeParse(solver, node));
         }
@@ -311,9 +309,7 @@ void solve(Node *node) {
     initTimeStart = cpuTime();
     if (node != NULL) {
         // parse the statement list
-		//cout<<"start to parse"<<endl;
         solverParse(solver, node);
-		//cout<<"succeed parse"<<endl;
         solver->initTime = cpuTime() - initTimeStart;
         //for debug: print out the variable
         int size = solver->varQueue->size();

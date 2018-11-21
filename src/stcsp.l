@@ -62,6 +62,7 @@ extern "C"{
 "if"            { return IF; }
 "then"          { return THEN; }
 "else"          { return ELSE; }
+"alldiff"       { return ALLDIFF; }
 
 "("             { return '('; }
 ")"             { return ')'; }

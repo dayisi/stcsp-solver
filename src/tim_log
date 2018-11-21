@@ -1,0 +1,291 @@
+normalise alldiff or max or min
+end of normalising alldiff, max or min
+check tautology
+check left
+NULL in constraintNodeValue
+chekc right
+other case
+other case
+NULL in constraintNodeValue
+end of other case
+end of other case
+add constr finished
+in generalisedArcConsistent...
+enforced arc is : constr-id 0---var x
+enforceAllDiffConsistency...
+enforceAllDiffConsistencyAt point 0
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 1
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+end of print edges...
+################
+enforceAllDiffConsistency done
+enforceAllDiffConsistencyAt point 1
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 1
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+end of print edges...
+################
+enforceAllDiffConsistency done
+enforced arc is : constr-id 0---var y
+enforceAllDiffConsistency...
+enforceAllDiffConsistencyAt point 0
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 1
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+end of print edges...
+################
+enforceAllDiffConsistency done
+enforceAllDiffConsistencyAt point 1
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 1
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+end of print edges...
+################
+enforceAllDiffConsistency done
+var x splits lower
+in generalisedArcConsistent...
+enforced arc is : constr-id 0---var x
+enforceAllDiffConsistency...
+enforceAllDiffConsistencyAt point 0
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 1
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+end of print edges...
+################
+max_matching->size() is 0
+num of var in constr is 2
+enforceAllDiffConsistency done
+var xfinish spliting lower
+var x split upper
+in generalisedArcConsistent...
+enforced arc is : constr-id 0---var x
+enforceAllDiffConsistency...
+enforceAllDiffConsistencyAt point 0
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+edge : var y-num 0
+end of print edges...
+################
+enforceAllDiffConsistency done
+enforceAllDiffConsistencyAt point 1
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 1
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+end of print edges...
+################
+enforceAllDiffConsistency done
+enforced arc is : constr-id 0---var y
+enforceAllDiffConsistency...
+enforceAllDiffConsistencyAt point 0
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+edge : var y-num 0
+end of print edges...
+################
+domain changed
+enforceAllDiffConsistency done
+enforceAllDiffConsistencyAt point 1
+build var queue and delete dup
+build graph...
+print graph
+####################
+print edges...
+edge : var y-num 1
+edge : var y-num 0
+edge : var x-num 1
+edge : var x-num 0
+end of print edges...
+################
+compute Max Match...
+print max_matching
+####################
+print edges...
+edge : var y-num 1
+edge : var x-num 0
+end of print edges...
+################
+max_matching->size() is 2
+num of var in constr is 2
+removeEdgeFromG...
+print removed_edes
+####################
+print edges...
+end of print edges...
+################
+enforceAllDiffConsistency done
+var xfinish split upper
+solver->initTime: 0.00
+solver->varQueue->size(): 2
+solver->constrQueue->size()1
+solver->numDominance: 1
+solver->numNodes: 1
+solver->numFails: 1
+solver->numStates: 1
+solver->solverTime: 0.00
+solver->processTime0.00000

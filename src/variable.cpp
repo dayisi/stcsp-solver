@@ -13,7 +13,6 @@ using namespace std;
 Variable *variableNew(Solver *solver, char *name, vector<int>domain) {
     int i;
 	Variable *var = (Variable *)myMalloc(sizeof(Variable));
-    //Variable *var = (Variable *)myMalloc(sizeof(Variable) + sizeof(vector< vector<int> >) + (sizeof(domain) + sizeof(int) * domain.capacity()) * (solver->prefixK + 1));
 
 	if(var == NULL){
 		cout<<"ERROR: out of memory"<<endl;
@@ -48,7 +47,6 @@ void variableFree(Variable *var) {
 	myFree(var->domain);
     myFree(var->currDM);
     constraintQueueFree(var->constraints);
-
 	myFree(var);
 }
 
@@ -204,7 +202,7 @@ Array *arrayNew(struct Solver * solver, char *name, vector<int> elements){
     myLog(LOG_TRACE, "};\n");
     return arr;
 }
-void variableFree(Array *arr){
+void arrayFree(Array *arr){
     free(arr->name);
     myFree(arr);
 }

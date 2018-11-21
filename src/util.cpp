@@ -120,27 +120,6 @@ Chunk_dm *newChunkDm(){
         } 
     }
       
-	/*
-    chunk->data.reserve(CHUNK_SIZE);
-	for(int i = 0; i < CHUNK_SIZE; i++){
-		//cout<<"i is "<<i<<endl;
-		//cout<<"maxsize is "<<chunk->data.max_size()<<endl;
-		//cout<<"capacity is "<<chunk->data.capacity()<<endl;
-		//cout<<"address of chunk is "<<&chunk<<endl;
-		//cout<<"address of chunk->data is "<<&(chunk->data[i])<<endl;
-		vector<int> temp(DOMAIN_SIZE, 0);
-		chunk->data.push_back(temp);
-		//cout<<"capacity is "<<chunk->data.capacity()<<" after push_back"<<endl;
-	}
-	//cout<<"after build, pop initialised integer"<<endl;
-	for(int i = 0; i < CHUNK_SIZE; i++){
-		for(int j = 0;  j < DOMAIN_SIZE; j++){
-			chunk->data[i].pop_back();
-		}
-		////cout<<"capacity is "<<chunk->data[i].capacity()<<endl;
-
-	}
-    */
 	chunk->ptr = 0;
 	chunk->prev = NULL;
 	chunk->next = NULL;
@@ -173,8 +152,17 @@ void freeMemory() {
         }
 
         while (chunk_dm != NULL) {
+            //while(!chunk_dm->addr->empty()){
+            //    chunk_dm->pop_back();
+            //}
             myFree(chunk_dm->addr);
-            myFree(chunk->data);
+            while(!chunk_dm->data->empty()){
+                while(!chunk_dm->data->back().empty()){
+                    chunk_dm->data->back().pop_back();
+                }
+                chunk_dm->data->pop_back();
+            }
+            myFree(chunk_dm->data);
             temp_dm = chunk_dm->next;
             myFree(chunk_dm);
             chunk_dm = temp_dm;

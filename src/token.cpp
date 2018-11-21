@@ -41,6 +41,7 @@ void tokenTableInit(TokenTable *table) {
     tokenTableAddToken(table, NE_CON, "!=", 1);
     tokenTableAddToken(table, UNTIL_CON, "until", 1);
     tokenTableAddToken(table, IMPLY_CON, "->", 1);
+    tokenTableAddToken(table, ALLDIFF, "alldiff", 1);
 
     /* logical_not_expression */
     tokenTableAddToken(table, NOT_OP, "not", 2);

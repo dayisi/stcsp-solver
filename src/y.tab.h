@@ -45,34 +45,35 @@
      VAR = 261,
      OBJ = 262,
      ARR = 263,
-     LE_CON = 264,
-     GE_CON = 265,
-     EQ_CON = 266,
-     NE_CON = 267,
-     IMPLY_CON = 268,
-     UNTIL_CON = 269,
-     LT_OP = 270,
-     GT_OP = 271,
-     LE_OP = 272,
-     GE_OP = 273,
-     EQ_OP = 274,
-     NE_OP = 275,
-     MAX_OP = 276,
-     MIN_OP = 277,
-     AND_OP = 278,
-     OR_OP = 279,
-     NOT_OP = 280,
-     AT = 281,
-     FIRST = 282,
-     NEXT = 283,
-     FBY = 284,
-     IF = 285,
-     THEN = 286,
-     ELSE = 287,
-     ABS = 288,
-     IDENTIFIER = 289,
-     ARR_IDENTIFIER = 290,
-     CONSTANT = 291
+     ALLDIFF = 264,
+     LE_CON = 265,
+     GE_CON = 266,
+     EQ_CON = 267,
+     NE_CON = 268,
+     IMPLY_CON = 269,
+     UNTIL_CON = 270,
+     LT_OP = 271,
+     GT_OP = 272,
+     LE_OP = 273,
+     GE_OP = 274,
+     EQ_OP = 275,
+     NE_OP = 276,
+     MAX_OP = 277,
+     MIN_OP = 278,
+     AND_OP = 279,
+     OR_OP = 280,
+     NOT_OP = 281,
+     AT = 282,
+     FIRST = 283,
+     NEXT = 284,
+     FBY = 285,
+     IF = 286,
+     THEN = 287,
+     ELSE = 288,
+     ABS = 289,
+     IDENTIFIER = 290,
+     ARR_IDENTIFIER = 291,
+     CONSTANT = 292
    };
 #endif
 /* Tokens.  */
@@ -82,48 +83,49 @@
 #define VAR 261
 #define OBJ 262
 #define ARR 263
-#define LE_CON 264
-#define GE_CON 265
-#define EQ_CON 266
-#define NE_CON 267
-#define IMPLY_CON 268
-#define UNTIL_CON 269
-#define LT_OP 270
-#define GT_OP 271
-#define LE_OP 272
-#define GE_OP 273
-#define EQ_OP 274
-#define NE_OP 275
-#define MAX_OP 276
-#define MIN_OP 277
-#define AND_OP 278
-#define OR_OP 279
-#define NOT_OP 280
-#define AT 281
-#define FIRST 282
-#define NEXT 283
-#define FBY 284
-#define IF 285
-#define THEN 286
-#define ELSE 287
-#define ABS 288
-#define IDENTIFIER 289
-#define ARR_IDENTIFIER 290
-#define CONSTANT 291
+#define ALLDIFF 264
+#define LE_CON 265
+#define GE_CON 266
+#define EQ_CON 267
+#define NE_CON 268
+#define IMPLY_CON 269
+#define UNTIL_CON 270
+#define LT_OP 271
+#define GT_OP 272
+#define LE_OP 273
+#define GE_OP 274
+#define EQ_OP 275
+#define NE_OP 276
+#define MAX_OP 277
+#define MIN_OP 278
+#define AND_OP 279
+#define OR_OP 280
+#define NOT_OP 281
+#define AT 282
+#define FIRST 283
+#define NEXT 284
+#define FBY 285
+#define IF 286
+#define THEN 287
+#define ELSE 288
+#define ABS 289
+#define IDENTIFIER 290
+#define ARR_IDENTIFIER 291
+#define CONSTANT 292
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 33 "stcsp.y"
+#line 34 "stcsp.y"
 {
     char *str;
     int num;
     Node *node;
 }
 /* Line 1529 of yacc.c.  */
-#line 127 "y.tab.h"
+#line 129 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

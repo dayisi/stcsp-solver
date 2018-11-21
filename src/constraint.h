@@ -34,6 +34,7 @@ struct ConstraintNode {
 #define CONSTR_POINT     1
 #define CONSTR_UNTIL     2
 #define CONSTR_AT        3
+#define CONSTR_ALLDIFF   4
 
 struct Constraint {
     Solver *solver; // Solver that owns the constraint

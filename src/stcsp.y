@@ -1,5 +1,6 @@
 %token STATEMENT  LIST LIST_ELEMENT
 %token VAR OBJ ARR
+%token ALLDIFF
 %token LE_CON GE_CON EQ_CON NE_CON IMPLY_CON UNTIL_CON
 %token LT_OP GT_OP LE_OP GE_OP EQ_OP NE_OP MAX_OP MIN_OP
 %token AND_OP OR_OP NOT_OP
@@ -40,7 +41,7 @@ char **my_argv = NULL;
 %token <str> ARR_IDENTIFIER
 %token <num> CONSTANT
 
-%type <node> statement_list statement declaration_statement objective_statement constraint_statement array_content
+%type <node> statement_list statement declaration_statement objective_statement constraint_statement array_content alldiff_statement
 %type <num> constraint_operator
 %type <node> expression logical_or_expression logical_and_expression logical_not_expression compare_expression
 %type <node> equality_expression relational_expression
@@ -85,7 +86,11 @@ objective_statement
 
 constraint_statement
     : expression constraint_operator expression ';' { $$ = basicNodeNew($2, $1, $3); }
+    | alldiff_statement ';' { $$ = $1; }
     ;
+
+alldiff_statement
+    : ALLDIFF '(' '[' primary_expression_list ']' ')' { $$ = basicNodeNew(ALLDIFF, NULL, $4); }
 
 constraint_operator
     : '<' { $$ = (int)'<'; }

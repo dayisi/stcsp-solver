@@ -86,7 +86,9 @@ void nodePrintDesc(FILE *fp, Node *node) {
 		fprintf(fp, "max");
 	} else if (node->token == MIN_OP){
 		fprintf(fp, "min");
-	} else if (node->token == AT ) {
+    } else if (node->token == ALLDIFF){
+        fprintf(fp, "alldiff");
+    } else if (node->token == AT ) {
         fprintf(fp, "@");
     } else if (node->token == FIRST) {
         fprintf(fp, "first");

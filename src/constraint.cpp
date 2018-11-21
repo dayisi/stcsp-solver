@@ -86,7 +86,7 @@ ConstraintNode *constraintNodeParse(Solver *solver, Node *node) {
         constrNode = constraintNodeNew(node->token, 0, NULL,
                                         solverGetArray(solver, node->str),
                                         NULL, constraintNodeParse(solver, node->right));
-    } else if (node->token == MAX_OP || node->token == MIN_OP){
+    } else if (node->token == MAX_OP || node->token == MIN_OP || node->token == ALLDIFF){
 		constrNode = constraintNodeNew(node->token, 0, NULL, NULL, NULL, constraintNodeParse(solver, node->right));
 	} else if ( node->token == LIST_ELEMENT ){
 		if(node->left != NULL)
@@ -166,7 +166,7 @@ void constraintNodeLogPrint(ConstraintNode *node, Solver *solver) {
         myLog(LOG_DEBUG, "[");
         constraintNodeLogPrint(node->right, solver);
         myLog(LOG_DEBUG, "]");
-	} else if (node->token == MAX_OP || node->token == MIN_OP){
+	} else if (node->token == MAX_OP || node->token == MIN_OP || node->token == ALLDIFF){
 		myLog(LOG_DEBUG, "%s", tokenString(solver->tokenTable, node->token));
         myLog(LOG_DEBUG, "([");
         constraintNodeLogPrint(node->right, solver);
@@ -306,6 +306,9 @@ void solverConstraintQueuePush(ConstraintQueue *queue, Constraint *constr, Solve
         constr->type = CONSTR_AT;
         myLog(LOG_TRACE, "AT : ");
     } 
+    else if (constr->node->token == ALLDIFF){
+        constr->type = CONSTR_ALLDIFF;
+    }
     else {
         constr->type = CONSTR_POINT;
         myLog(LOG_TRACE, "POINT: ");
@@ -361,7 +364,14 @@ void constraintPrint(Constraint *constr) {
 // Attempts to compute the value of a ConstraintNode,
 // for tautology checks after constraint translations.
 LiftedInt constraintNodeValue(ConstraintNode *constrNode) {
+
     LiftedInt result;
+    if(constrNode == NULL){
+        cout<<"NULL in constraintNodeValue"<<endl;
+        result.tag = false;
+        result.Int = 0;
+        return result;
+    }
     if (constrNode->token == IDENTIFIER) {
         result.tag = true;
     } else if (constrNode->token == CONSTANT) {
@@ -455,7 +465,32 @@ LiftedInt constraintNodeValue(ConstraintNode *constrNode) {
 				result.Int = rightResult.Int;
 			}
 		}
-	} else {
+	} else if(constrNode->token == ALLDIFF){
+        cout<<"constraintNodeValue of ALLDIFF"<<endl;
+		ConstraintNode* listNode = constrNode->right;
+		result = constraintNodeValue(listNode->right);
+        LiftedInt rightResult;
+        vector<int> list = vector<int>();
+        list.push_back(result.Int);
+        while(listNode->left != NULL){
+            listNode = listNode->left;
+            rightResult = constraintNodeValue(listNode->right);
+            result.tag = result.tag || rightResult.tag;
+            list.push_back(rightResult.Int);
+        }
+        result.Int = 1;
+        for(int i = 0; i < list.size(); i++){
+            for(int j = i + 1; j < list.size(); j++){
+                if(list.at(i) == list.at(j)){
+                    result.tag = false;
+                    result.Int = 0;
+                    return result;
+                }
+            }
+        }
+        cout<<"end of constraintNode of ALLDIFF"<<endl;
+    } else {
+        cout<<"other case"<<endl;
         LiftedInt leftResult = constraintNodeValue(constrNode->left);
         LiftedInt rightResult = constraintNodeValue(constrNode->right);
 
@@ -477,6 +512,7 @@ LiftedInt constraintNodeValue(ConstraintNode *constrNode) {
                 case '%' : result.Int = leftResult.Int % rightResult.Int; break;
             }
         }
+        cout<<"end of other case"<<endl;
     }
     return result;
 }
@@ -484,7 +520,10 @@ LiftedInt constraintNodeValue(ConstraintNode *constrNode) {
 // Checks for constraints that are tautologies. Only does numerical
 // evaluation, i.e. zeroth order arithmetic truth.
 bool constraintNodeTautology(ConstraintNode *constrNode) {
+    cout<<"check tautology"<<endl;
+    cout<<"check left"<<endl;
     LiftedInt leftResult = constraintNodeValue(constrNode->left);
+    cout<<"chekc right"<<endl; 
     LiftedInt rightResult = constraintNodeValue(constrNode->right);
 
     if (leftResult.tag || rightResult.tag) {
@@ -502,6 +541,7 @@ bool constraintNodeTautology(ConstraintNode *constrNode) {
             default : myLog(LOG_TRACE, "Weird constraint in constraintNodeTautology.\n"); return false; break;
         }
     }
+    cout<<"end of checking tautology"<<endl;
 }
 
 // Recursive translation of ConstraintNode. Only invoked inside a subtree of a

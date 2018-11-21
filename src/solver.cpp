@@ -16,6 +16,7 @@
 #include "solveralgorithm.h"
 #include "y.tab.h"
 #include <deque>
+
 extern int my_argc;
 extern char **my_argv;
 
@@ -388,7 +389,6 @@ void solve(Node *node) {
     if (node != NULL) {
         nodeFree(node);
     }
-
     freeMemory();
 #if MEMORY
     myLog(LOG_DEBUG, "Malloc = %d, Free = %d, Diff = %d\n", mallocCount, freeCount, mallocCount - freeCount);

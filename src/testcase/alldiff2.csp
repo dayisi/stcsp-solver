@@ -1,0 +1,4 @@
+var x: {0,1};
+var y: {0,1};
+var z: {0,1,2};
+alldiff([x,y,z]);

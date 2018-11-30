@@ -5,7 +5,7 @@ L       [a-zA-Z]
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "util.h"
+//#include "util.h"
 #include "node.h"
 #include "y.tab.h"
 
@@ -39,6 +39,8 @@ extern "C"{
 "ge"            { return GE_OP; }
 "eq"            { return EQ_OP; }
 "ne"            { return NE_OP; }
+"max"			{ return MAX_OP; }
+"min"			{ return MIN_OP; }
 
 "and"           { return AND_OP; }
 "or"            { return OR_OP; }
@@ -60,6 +62,7 @@ extern "C"{
 "if"            { return IF; }
 "then"          { return THEN; }
 "else"          { return ELSE; }
+"alldiff"       { return ALLDIFF; }
 
 "("             { return '('; }
 ")"             { return ')'; }

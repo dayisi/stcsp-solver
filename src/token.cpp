@@ -41,6 +41,7 @@ void tokenTableInit(TokenTable *table) {
     tokenTableAddToken(table, NE_CON, "!=", 1);
     tokenTableAddToken(table, UNTIL_CON, "until", 1);
     tokenTableAddToken(table, IMPLY_CON, "->", 1);
+    tokenTableAddToken(table, ALLDIFF, "alldiff", 1);
 
     /* logical_not_expression */
     tokenTableAddToken(table, NOT_OP, "not", 2);
@@ -72,6 +73,10 @@ void tokenTableInit(TokenTable *table) {
     tokenTableAddToken(table, '/', "/", 8);
     tokenTableAddToken(table, '%', "%", 8);
 
+	/* compare_expression */
+	tokenTableAddToken(table, MAX_OP, "max", 7);
+	tokenTableAddToken(table, MIN_OP, "min", 7);
+	
     /* at_expression */
     tokenTableAddToken(table, AT, "@", 9); 
 

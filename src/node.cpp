@@ -1,18 +1,20 @@
 #include <cstdio>
+#include <stdio.h>
 #include <cstdlib>
 #include <cstring>
 #include "util.h"
 #include "node.h"
 #include "y.tab.h"
 
-Node *nodeNew(int token, char *str, int num1, int num2, Node *left, Node *right) {
+void nodePrintDesc(FILE *fp, Node* node);
+Node *nodeNew(int token, char *str, int num, Node *left, Node *right) {
     Node *node;
 
     node = (Node *)myMalloc(sizeof(Node));
     node->token = token;
     node->str = str;
-    node->num1 = num1;
-    node->num2 = num2;
+    node->num = num;
+    //node->num2 = num2;
     node->left = left;
     node->right = right;
 
@@ -26,7 +28,7 @@ void nodeFree(Node *node) {
     if (node->right != NULL) {
         nodeFree(node->right);
     }
-    myFree(node);
+	    myFree(node);
 }
 
 void nodePrintDesc(FILE *fp, Node *node) {
@@ -35,10 +37,14 @@ void nodePrintDesc(FILE *fp, Node *node) {
     } else if (node->token == ARR_IDENTIFIER) {
         fprintf(fp, "%d", node->str);
     } else if (node->token == CONSTANT) {
-        fprintf(fp, "%d", node->num1);
-    } else if (node->token == RANGE) {
+        fprintf(fp, "%d", node->num);
+    }
+	/*
+   	else if (node->token == RANGE) {
         fprintf(fp, "%d, %d", node->num1, node->num2);
-    } else if (node->token == VAR) {
+    } 
+	*/
+	else if (node->token == VAR) {
         fprintf(fp, "var: %s", node->str);
     } else if (node->token == STATEMENT) {
         fprintf(fp, "#");
@@ -76,6 +82,12 @@ void nodePrintDesc(FILE *fp, Node *node) {
         fprintf(fp, "or");
     } else if (node->token == NOT_OP) {
         fprintf(fp, "not");
+	} else if (node->token == MAX_OP){
+		fprintf(fp, "max");
+	} else if (node->token == MIN_OP){
+		fprintf(fp, "min");
+    } else if (node->token == ALLDIFF){
+        fprintf(fp, "alldiff");
     } else if (node->token == AT ) {
         fprintf(fp, "@");
     } else if (node->token == FIRST) {

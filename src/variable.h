@@ -10,14 +10,16 @@ struct Solver;
 struct Variable {
     Solver *solver; // The solver that owns this variable.
     char *name; // Name of the variable in the constraint program. char * because lexer is in C.
-    int lb; // Lower bound.
-    int ub; // Upper boudn.
+    //int lb; // Lower bound.
+    //int ub; // Upper boudn.
+	vector<int> *domain; // ptr to a vector, which contains domain of variable.
 
     ConstraintQueue *constraints; // List of constraints the variable is involved in.
     int numConstr; // Number of such constraints.
 
-    int *currLB; // Array of k lower bounds, for enforcing prefix-k consistency.
-    int *currUB; // Array of k upper bounds, for enforcing prefix-k consistency.
+    //int *currLB; // Array of k lower bounds, for enforcing prefix-k consistency.
+    //int *currUB; // Array of k upper bounds, for enforcing prefix-k consistency.
+	vector< vector<int> > *currDM; //vector of k domains, for enforcing prefix-k consistency.
     int prevValue; // Value assigned to previous time point.
     int isSignature; // Whether the variable is in the signature of the St-CSP.
     int isUntil; // Whether the variable is in the until signature of the St-CSP.
@@ -27,22 +29,36 @@ struct Variable {
 
 typedef vector<Variable *> VariableQueue;
 
-Variable *variableNew(struct Solver *solver, char *name, int lb, int ub);
+//Variable *variableNew(struct Solver *solver, char *name, Node *domain_node);
+Variable *variableNew(struct Solver *solver, char *name, vector<int> domain);
 void variableFree(Variable *var);
 
 static inline int variableGetValue(Variable *var) {
-    if (var->currLB[0] != var->currUB[0]) {
-        myLog(LOG_WARNING, "%s is not bounded yet.\n", var->name);
+	if(var->currDM->at(0).size() > 1){
+		int temp_val = var->currDM->at(0).at(0);
+		for(int i = 0; i < var->currDM->at(0).size(); i++){
+        	if(temp_val != var->currDM->at(0).at(i)){
+				myLog(LOG_WARNING, "%s is not bounded yet.\n", var->name);
+				break;
+			}
+    	}
+	} 
+    if(var->currDM->at(0).size()==0){
+        cout<<"error, no domain"<<endl;
+        exit(1);
     }
-    return var->currLB[0];
+    return var->currDM->at(0).at(0);
 }
 
 void variableSplitLower(Variable *var);
 void variableSplitUpper(Variable *var);
+
+/*
 void variableSetLB(Variable *var, int lb);
 void variableSetUB(Variable *var, int ub);
 void variableSetLBAt(Variable *var, int lb, int i);
 void variableSetUBAt(Variable *var, int ub, int i);
+*/
 void variablePrint(Variable *var);
 void variableAdvanceOneTimeStep(Solver *solver, Variable *var);
 

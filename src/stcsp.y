@@ -1,7 +1,8 @@
-%token STATEMENT RANGE LIST
+%token STATEMENT  LIST LIST_ELEMENT
 %token VAR OBJ ARR
+%token ALLDIFF
 %token LE_CON GE_CON EQ_CON NE_CON IMPLY_CON UNTIL_CON
-%token LT_OP GT_OP LE_OP GE_OP EQ_OP NE_OP
+%token LT_OP GT_OP LE_OP GE_OP EQ_OP NE_OP MAX_OP MIN_OP
 %token AND_OP OR_OP NOT_OP
 %token AT FIRST NEXT FBY IF THEN ELSE
 %token ABS
@@ -12,7 +13,7 @@
 #include "node.h"
 #include <sys/resource.h>
 
-#define basicNodeNew(token, left, right) nodeNew((token), NULL, 0, 0, (left), (right))
+#define basicNodeNew(token, left, right) nodeNew((token), NULL, 0, (left), (right))
 
 void solve(Node *node);
 
@@ -40,14 +41,14 @@ char **my_argv = NULL;
 %token <str> ARR_IDENTIFIER
 %token <num> CONSTANT
 
-%type <node> statement_list statement declaration_statement objective_statement constraint_statement array_content
+%type <node> statement_list statement declaration_statement objective_statement constraint_statement array_content alldiff_statement
 %type <num> constraint_operator
-%type <node> expression logical_or_expression logical_and_expression logical_not_expression
+%type <node> expression logical_or_expression logical_and_expression logical_not_expression compare_expression
 %type <node> equality_expression relational_expression
 %type <num> relational_operator
 %type <node> additive_expression multiplicative_expression at_expression
 %type <node> fby_expression
-%type <node> unary_expression primary_expression
+%type <node> unary_expression primary_expression primary_expression_list
 
 %start solve_problem
 
@@ -69,23 +70,27 @@ statement
     ;
 
 array_content
-    : CONSTANT { $$ = nodeNew(LIST, NULL, $1, 0, NULL, NULL); }
-    | array_content ',' CONSTANT { $$=nodeNew(LIST, NULL, $3, 0, $1, NULL); }
+    : CONSTANT { $$ = nodeNew(LIST, NULL, $1,  NULL, NULL); }
+    | array_content ',' CONSTANT { $$=nodeNew(LIST, NULL, $3, $1, NULL); }
     ;
 
 declaration_statement
-    : VAR IDENTIFIER ':' '[' CONSTANT ',' CONSTANT ']' ';' { $$ = nodeNew(VAR, $2, 0, 0, NULL, nodeNew(RANGE, NULL, $5, $7, NULL, NULL)); }
-    | ARR IDENTIFIER ':' '{' array_content '}' ';' { $$=nodeNew(ARR, $2, 0, 0, NULL, $5); }
+    : VAR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(VAR, $2, 0, NULL, $5); }
+    | ARR IDENTIFIER ':' '{' array_content '}' ';' { $$ = nodeNew(ARR, $2, 0, NULL, $5); }
     ;
 
 
 objective_statement
-    : OBJ IDENTIFIER ';' { $$ = nodeNew(OBJ, $2, 0, 0, NULL, NULL); }
+    : OBJ IDENTIFIER ';' { $$ = nodeNew(OBJ, $2, 0, NULL, NULL); }
     ;
 
 constraint_statement
     : expression constraint_operator expression ';' { $$ = basicNodeNew($2, $1, $3); }
+    | alldiff_statement ';' { $$ = $1; }
     ;
+
+alldiff_statement
+    : ALLDIFF '(' '[' primary_expression_list ']' ')' { $$ = basicNodeNew(ALLDIFF, NULL, $4); }
 
 constraint_operator
     : '<' { $$ = (int)'<'; }
@@ -100,12 +105,22 @@ constraint_operator
 
 expression
     : logical_not_expression { $$ = $1; }
+    | compare_expression { $$ = $1;}
     ;
 
 logical_not_expression 
     : logical_or_expression { $$ = $1; }
-    | NOT_OP logical_not_expression { $$ = basicNodeNew(NOT_OP, NULL, $2); }
+	| NOT_OP logical_not_expression { $$ = basicNodeNew(NOT_OP, NULL, $2); }
     ;
+
+compare_expression
+	: MAX_OP '(' '[' primary_expression_list ']' ')' { $$ = basicNodeNew(MAX_OP, NULL, $4); }
+	| MIN_OP '(' '[' primary_expression_list ']' ')' { $$ = basicNodeNew(MIN_OP, NULL, $4); }
+	;
+primary_expression_list
+	: primary_expression_list ',' primary_expression { $$ = basicNodeNew(LIST_ELEMENT,$1,$3); }
+	| primary_expression { $$ = basicNodeNew(LIST_ELEMENT, NULL, $1); }
+	;
 
 logical_or_expression
     : logical_and_expression { $$ = $1; }
@@ -150,7 +165,7 @@ multiplicative_expression
 
 at_expression
     : fby_expression { $$ = $1;}
-    | fby_expression AT CONSTANT { $$ = nodeNew(AT, NULL, $3, 0, $1, NULL); }
+    | fby_expression AT CONSTANT { $$ = nodeNew(AT, NULL, $3, $1, NULL); }
     ;
 
 fby_expression
@@ -167,9 +182,9 @@ unary_expression
     ;
 
 primary_expression
-    : IDENTIFIER { $$ = nodeNew(IDENTIFIER, $1, 0, 0, NULL, NULL); }
-    | IDENTIFIER '[' expression ']' { $$ = nodeNew(ARR_IDENTIFIER, $1, 0, 0, NULL, $3);}
-    | CONSTANT { $$ = nodeNew(CONSTANT, NULL, $1, 0, NULL, NULL); }
+    : IDENTIFIER { $$ = nodeNew(IDENTIFIER, $1, 0, NULL, NULL); }
+    | IDENTIFIER '[' expression ']' { $$ = nodeNew(ARR_IDENTIFIER, $1, 0, NULL, $3);}
+    | CONSTANT { $$ = nodeNew(CONSTANT, NULL, $1, NULL, NULL); }
     | '(' expression ')' { $$ = $2; }
     ;
 

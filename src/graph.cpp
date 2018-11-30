@@ -168,7 +168,9 @@ bool checkVertexOutEdge(Vertex * vertex, VariableQueue * varQueue, int i) {
     Variable *var = (*varQueue)[i];
     //char * var_name = var->name;
     //check value c
-    for (int c = var->lb; c <= var->ub; c++) {
+    //for (int c = var->lb; c <= var->ub; c++) {
+	for (int i = 0; i < var->domain->size(); i++) {
+		int c = var->domain->at(i);
         bool exist = false;
         for (hash_map<int, slist<Edge *> *>::iterator hash_it = vertex->edges->begin(); hash_it != vertex->edges->end(); hash_it++) {
             //edge list of the vertex
@@ -195,9 +197,11 @@ bool checkVertexOutEdge2(Vertex * vertex, VariableQueue * varQueue, int op, int 
     Variable *op_act = (*varQueue)[op];
     
     hash_map<int, set<int> > ava_act_to_op_acts;
-    size_t op_nums = op_act->ub - op_act->lb + 1;
+    //size_t op_nums = op_act->ub - op_act->lb + 1;
+	size_t op_nums = op_act->domain->size();
     //init
-    for(int a = ava_act->lb; a<= ava_act->ub;a++)
+    //for(int a = ava_act->lb; a<= ava_act->ub;a++)
+	for(int a = 0; a < ava_act->domain->size();a++)
         ava_act_to_op_acts[a] = set<int>();
     //single scan through all edge
     bool node_valid = false;
@@ -217,7 +221,9 @@ bool checkVertexOutEdge2(Vertex * vertex, VariableQueue * varQueue, int op, int 
 
     if(node_valid){
         set<int> ava_act_to_remove;
-        for(int a = ava_act->lb; a<= ava_act->ub;a++){
+        //for(int a = ava_act->lb; a<= ava_act->ub;a++){
+		for(int i = 0; i < ava_act->domain->size();i++){
+			int a = ava_act->domain->at(i);
             if(ava_act_to_op_acts[a].size() != op_nums){
                 ava_act_to_remove.insert(a);
             }

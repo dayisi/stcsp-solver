@@ -1,0 +1,12 @@
+var a: {0,1,2,3,4};
+var b: {0,1,2,3,4};
+var c: {0,1,2,3,4};
+var d: {0,1,2,3,4};
+var e: {0,1,2,3,4};
+
+a == next a;
+b == next b;
+c == next c;
+d == next d;
+e == next e;
+alldiff([a,b,c,d,e]);

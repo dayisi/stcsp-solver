@@ -1,0 +1,29 @@
+2018-11-21
+1. How to ensure that alldiff filtering algorithm only run once?
+   In generalisedArcConsistency() function, when there is an arc whose
+constraint is alldiff, delete other arcs whose constraint id are the same with
+this one such that alldiff for this constraint run once.
+
+2. How to use propagation algorithm?
+    For each constraint, add graph, max_matching and removed_edges component
+into the structure. Then whenever an alldiff arc is enforced to consistent,
+performing the algorithm based on the fact that if the alldiff constraint has
+not be enforced consistent before, the removed edge generated from other arcs
+will not appear in the building of graph because that related variables will
+delete the num in the removed edges from their domain. If the alldiff
+constraint has been performed, then the removed edges can be used to perform
+the diff-propagation because there are built graph and max_matching preserved
+in the constraint.
+    To add graph, max_matching and removed_edges in constraint data struct,
+the new of constraint must be changed.
+
+3. How to greedily build initial matching?
+    Greedily match variables with num in domains without conflict. Then from
+free variable vertices, using DFS to find augmenting paths that terminate with
+num vertex. If not found, no max_mathing in the graph.
+
+4. How to use find Strongly Connected Component?
+    Use DFS from the unused matching edges. The theorem is that the SCC must
+be a circle in the graph and such circle must be an augmenting path or there
+will not be a circle. It means that all SCC we want must contains edges in
+matching. Also, the search only cost O(|V| + |E|) linear time.

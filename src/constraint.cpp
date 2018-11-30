@@ -11,6 +11,9 @@
 
 ConstraintNode *constraintNodeNew(int token, int num, Variable *var, Array* array, ConstraintNode *left, ConstraintNode *right) {
     ConstraintNode *node = (ConstraintNode *)myMalloc(sizeof(ConstraintNode));
+	if(node == NULL){
+		cout<<"ERROR: out of memory"<<endl;
+	}
     node->token = token;
     node->num = num;
     node->var = var;
@@ -68,11 +71,11 @@ ConstraintNode *constraintNodeParse(Solver *solver, Node *node) {
                             constraintNodeParse(solver, node->left),
                             constraintNodeParse(solver, node->right));
     } else if ( node->token == AT ) {
-        constrNode = constraintNodeNew(node->token, 0, NULL, NULL, constraintNodeParse(solver, node->left), constraintNodeNew(CONSTANT, node->num1, NULL, NULL, NULL, NULL));
+        constrNode = constraintNodeNew(node->token, 0, NULL, NULL, constraintNodeParse(solver, node->left), constraintNodeNew(CONSTANT, node->num, NULL, NULL, NULL, NULL));
     } else if (node->token == ABS || node->token == FIRST || node->token == NEXT || node->token == NOT_OP  ) {
         constrNode = constraintNodeNew(node->token, 0, NULL, NULL, NULL, constraintNodeParse(solver, node->right));
     } else if (node->token == CONSTANT) {
-        constrNode = constraintNodeNewConstant(node->num1);
+        constrNode = constraintNodeNewConstant(node->num);
     } else if (node->token == IDENTIFIER) {
         constrNode = constraintNodeNew(node->token, 0,
                                        solverGetVar(solver, node->str),
@@ -81,7 +84,17 @@ ConstraintNode *constraintNodeParse(Solver *solver, Node *node) {
         constrNode = constraintNodeNew(node->token, 0, NULL,
                                         solverGetArray(solver, node->str),
                                         NULL, constraintNodeParse(solver, node->right));
-    } else {
+    } else if (node->token == MAX_OP || node->token == MIN_OP || node->token == ALLDIFF){
+		constrNode = constraintNodeNew(node->token, 0, NULL, NULL, NULL, constraintNodeParse(solver, node->right));
+	} else if ( node->token == LIST_ELEMENT ){
+		if(node->left != NULL)
+		{
+			constrNode = constraintNodeNew(node->token, 0, NULL, NULL, constraintNodeParse(solver, node->left),constraintNodeParse(solver, node->right));
+		}
+		else{
+			constrNode = constraintNodeNew(node->token, 0,NULL, NULL,NULL,constraintNodeParse(solver,node->right));	
+		}
+	}else {
         myLog(LOG_ERROR, "Unknown token: %d\n", node->token);
         exit(1);
     }
@@ -150,11 +163,21 @@ void constraintNodeLogPrint(ConstraintNode *node, Solver *solver) {
         myLog(LOG_DEBUG, "[");
         constraintNodeLogPrint(node->right, solver);
         myLog(LOG_DEBUG, "]");
-    }
+	} else if (node->token == MAX_OP || node->token == MIN_OP || node->token == ALLDIFF){
+		myLog(LOG_DEBUG, "%s", tokenString(solver->tokenTable, node->token));
+        myLog(LOG_DEBUG, "([");
+        constraintNodeLogPrint(node->right, solver);
+        myLog(LOG_DEBUG, "])");
+	} else if (node->token == LIST_ELEMENT){
+		constraintNodeLogPrint(node->right, solver);
+		if(node->left!=NULL){
+			myLog(LOG_DEBUG,", ");		
+			constraintNodeLogPrint(node->left,solver);
+		}
+	}
 }
 
 Constraint *constraintNew(Solver *solver, ConstraintNode *node, int expire) {
-
     Constraint *constr = (Constraint *)myMalloc(sizeof(Constraint));
     constr->solver = solver;
     constr->node = node;
@@ -278,6 +301,9 @@ void solverConstraintQueuePush(ConstraintQueue *queue, Constraint *constr, Solve
         constr->type = CONSTR_AT;
         myLog(LOG_TRACE, "AT : ");
     } 
+    else if (constr->node->token == ALLDIFF){
+        constr->type = CONSTR_ALLDIFF;
+    }
     else {
         constr->type = CONSTR_POINT;
         myLog(LOG_TRACE, "POINT: ");
@@ -333,7 +359,13 @@ void constraintPrint(Constraint *constr) {
 // Attempts to compute the value of a ConstraintNode,
 // for tautology checks after constraint translations.
 LiftedInt constraintNodeValue(ConstraintNode *constrNode) {
+
     LiftedInt result;
+    if(constrNode == NULL){
+        result.tag = false;
+        result.Int = 0;
+        return result;
+    }
     if (constrNode->token == IDENTIFIER) {
         result.tag = true;
     } else if (constrNode->token == CONSTANT) {
@@ -410,6 +442,43 @@ LiftedInt constraintNodeValue(ConstraintNode *constrNode) {
                 result.tag = true;
             } else {
                 result = rightResult;
+            }
+        }
+	} else if(constrNode->token == MAX_OP || constrNode->token == MIN_OP){
+		ConstraintNode* listNode = constrNode->right;
+		result = constraintNodeValue(listNode->right);
+		LiftedInt rightResult;
+		while(listNode->left != NULL){
+			listNode = listNode->left;
+			rightResult = constraintNodeValue(listNode->right);
+			result.tag = result.tag && rightResult.tag;	
+			if(constrNode->token == MAX_OP && result.Int < rightResult.Int){
+				result.Int = rightResult.Int;
+			}
+			else if(constrNode->token == MIN_OP && result.Int > rightResult.Int){
+				result.Int = rightResult.Int;
+			}
+		}
+	} else if(constrNode->token == ALLDIFF){
+		ConstraintNode* listNode = constrNode->right;
+		result = constraintNodeValue(listNode->right);
+        LiftedInt rightResult;
+        vector<int> list = vector<int>();
+        list.push_back(result.Int);
+        while(listNode->left != NULL){
+            listNode = listNode->left;
+            rightResult = constraintNodeValue(listNode->right);
+            result.tag = result.tag || rightResult.tag;
+            list.push_back(rightResult.Int);
+        }
+        result.Int = 1;
+        for(int i = 0; i < list.size(); i++){
+            for(int j = i + 1; j < list.size(); j++){
+                if(list.at(i) == list.at(j)){
+                    result.tag = false;
+                    result.Int = 0;
+                    return result;
+                }
             }
         }
     } else {

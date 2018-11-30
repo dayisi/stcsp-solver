@@ -27,6 +27,7 @@ struct Solver {
     int numAuxVar; // Number of auxiliary variables introduced in normalisation.
     int numNodes; // Number of states in the output automaton.
     int numFails; // Number of failures encountered. Note that a better consistency notion might give a lower numFails.
+	int numStates; // Number of states with no unbounded variables;
     int numSolutions; // Not used?
     double initTime; // Time taken for initialisation, i.e. parsing AST into constraint representation.
     double solveTime; // Time for solver to taken for solve the St-CSP.
@@ -54,11 +55,13 @@ Variable *solverGetFirstUnboundVar(Solver *solver);
 Array *solverGetArray(Solver *solver, char *name);
 
 void solve(Node *node);
-Variable *solverAuxVarNew(Solver *solver, char *var_name, int lb, int ub);
+Variable *solverAuxVarNew(Solver *solver, char *var_name, vector<int> domain);
+Variable *solverAddVar(Solver *solver, char* var_name, vector<int>domain);
 void solverAddConstrNode(Solver *solver, ConstraintNode *node);
 
 Arc *arcNew(Constraint *constr, Variable *var);
 void arcQueueFree(ArcQueue * arcs);
 bool arcQueueFind(ArcQueue *queue, Arc *arc);
+bool deleteDup(vector<int> &domain);
 
 #endif

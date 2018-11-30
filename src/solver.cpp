@@ -16,8 +16,25 @@
 #include "solveralgorithm.h"
 #include "y.tab.h"
 #include <deque>
+
 extern int my_argc;
 extern char **my_argv;
+
+bool deleteDup(vector<int> &domain){
+	int size = domain.size();
+	for(int i = 0; i < domain.size(); i++){
+		for( int j = domain.size() - 1; j > i; j -- ){
+			if(domain.at(j) == domain.at(i)){
+				domain.erase(domain.begin() + j);	
+			}
+		}
+	}
+	bool hasDup = false;
+	if(size > domain.size()){
+		hasDup = true;
+	}
+	return hasDup;
+}
 
 // Name |-> Variable.
 Variable *solverGetVar(Solver *solver, char *name) {
@@ -44,9 +61,19 @@ Variable *solverGetFirstUnboundVar(Solver *solver) {
     int size = solver->varQueue->size();
     bool found = false;
     for (int i = 0; !found && i < size; i++) {
-        if ((*(solver->varQueue))[i]->currLB[0] < (*(solver->varQueue))[i]->currUB[0]) {
-            var = (*(solver->varQueue))[i];
-            found = true;
+        //if ((*(solver->varQueue))[i]->currLB[0] < (*(solver->varQueue))[i]->currUB[0]) {
+		
+		if ((*(solver->varQueue))[i]->currDM->at(0).size() > 1) {
+			int temp_num = 	(*(solver->varQueue))[i]->currDM->at(0).front();
+			for(int j = 1; j<(*(solver->varQueue))[i]->currDM->at(0).size();j++){
+				if(temp_num != (*(solver->varQueue))[i]->currDM->at(0).at(j)){
+					var = (*(solver->varQueue))[i];
+					found = true;
+					return var;
+				}		
+			}
+            //var = (*(solver->varQueue))[i];
+            //found = true;
         }
     }
     return var;
@@ -81,6 +108,7 @@ Solver *solverNew(int k, int l, int prefixK, char *varOrder, int printSolution, 
     solver->numUntil = 0;
     solver->numNodes = 0;
     solver->numFails = 0;
+	solver->numStates = 0;
     solver->numSolutions = 0;
     solver->numDominance = 0;
     solver->propagateTimestamp = 0;
@@ -107,20 +135,21 @@ Solver *solverNew(int k, int l, int prefixK, char *varOrder, int printSolution, 
     return solver;
 }
 
-Variable *solverAddVar(Solver *solver, char *var_name, int lb, int ub) {
+Variable *solverAddVar(Solver *solver, char *var_name, vector<int>domain) {
     Variable *var = NULL;
 
-    var = variableNew(solver, var_name, lb, ub);
+    var = variableNew(solver, var_name, domain);
     variableQueuePush(solver->varQueue, var);
 
     return var;
 }
 
-Variable *solverAuxVarNew(Solver *solver, char *var_name, int lb, int ub) {
+Variable *solverAuxVarNew(Solver *solver, char *var_name, vector<int> domain) {
     char name[16];
     sprintf(var_name == NULL ? name : var_name, "_V%d", solver->numAuxVar);
     solver->numAuxVar++;
-    return solverAddVar(solver, var_name == NULL ? name : var_name, lb, ub);
+    //return solverAddVar(solver, var_name == NULL ? name : var_name, lb, ub);
+	return solverAddVar(solver, var_name == NULL ? name : var_name, domain);
 }
 
 Array *solverAddArr(Solver *solver, char *arr_name, vector<int> array){
@@ -141,12 +170,21 @@ void solverParse(Solver *solver, Node *node) {
             solverParse(solver, node->left);
             solverParse(solver, node->right);
         } else if (node->token == VAR) {
-            solverAddVar(solver, node->str, node->right->num1, node->right->num2);
+			vector<int> domain =vector<int>();
+			Node *domain_node = node->right;
+			domain.push_back(domain_node->num);
+			while(domain_node->left != NULL && domain_node->left->token == LIST){
+				domain_node = domain_node->left;
+				domain.push_back(domain_node->num);
+			}
+            //solverAddVar(solver, node->str, node->right);
+			
+			solverAddVar(solver, node->str, domain);
         } else if (node->token == ARR) {
             list<int> temp;
             Node * array_node = node->right;
             while(array_node != NULL){
-                temp.push_front(array_node->num1);
+                temp.push_front(array_node->num);
                 array_node = array_node->left;
             }
             vector<int> elements(temp.begin(), temp.end());
@@ -351,7 +389,6 @@ void solve(Node *node) {
     if (node != NULL) {
         nodeFree(node);
     }
-
     freeMemory();
 #if MEMORY
     myLog(LOG_DEBUG, "Malloc = %d, Free = %d, Diff = %d\n", mallocCount, freeCount, mallocCount - freeCount);

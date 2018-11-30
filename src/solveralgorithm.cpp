@@ -1,7 +1,10 @@
 #include <cstdio>
+#include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <unistd.h>
+#include <vector>
 #include "util.h"
 #include "token.h"
 #include "node.h"
@@ -12,10 +15,454 @@
 #include "y.tab.h"
 #include "graph.h"
 
+int num_of_tree_node = 0;
+using namespace std;
+
+bool traceAugPathFromEdgeRe(vector<MyEdge*> *graph, vector<MyEdge*>* partial_matching, MyEdge* edge);
+bool traceAugPathFromVar(vector<MyEdge*> *graph, vector<MyEdge*>* partial_matching, Variable* var);
+void buildMaxMatchingFrom(vector<MyEdge*>* graph, vector<MyEdge*>* partial_matching, vector<MyEdge*>* max_matching, VariableQueue* variables, int point);
+vector <MyEdge* > *computeMaxMatch(vector<MyEdge*>* graph, VariableQueue* variables, int point);
+vector <MyEdge* > *buildMyGraph(Constraint *constr, VariableQueue *variables, int point);
+vector <MyEdge* > *greedilyFindMatch(vector<MyEdge*> *graph);
+vector <MyEdge* > *removeEdgeFromG(vector<MyEdge*> *graph, vector<MyEdge*>* matching);
+vector<MyEdge*>* getSuccessor(vector<MyEdge*>* graph, MyEdge* edge);
+vector<MyEdge*>* getPredecessor(vector<MyEdge*>* graph, MyEdge* edge);
+bool computeSCCFromRe(vector<MyEdge*>*graph, MyEdge* start_edge, vector<MyEdge*>* my_stack);
+bool computeSCCFrom(vector<MyEdge*>* graph, MyEdge* start_edge);
+void computeSCC(vector<MyEdge*>* graph, vector<MyEdge*> *matching);
+bool enforceAllDiffConsistencyAt(Constraint* constr, Variable* var, bool &change, int point);
+bool enforceAllDiffConsistency(Solver* solver, Constraint* constr, Variable* var, bool &change);
+
+void printMyEdge(vector<MyEdge*> *edges){
+    cout<<"####################"<<endl<<"print edges..."<<endl;
+    
+    for(int i = 0; i < edges->size(); i++){
+        if(edges->at(i)->direction==0){
+            cout<<"edge : var "<<edges->at(i)->var->name<<"<-num "<<edges->at(i)->num<<endl;
+        }else{
+            cout<<"edge : var "<<edges->at(i)->var->name<<"->num "<<edges->at(i)->num<<endl;
+
+        }
+
+    }
+    cout<<"end of print edges..."<<endl<<"################"<<endl;
+
+}
+
+MyEdge* newMyEdge(Variable* var, int num){
+MyEdge* e = (MyEdge*)myMalloc(sizeof(MyEdge));
+e->var = var;
+e->num = num;
+e->direction = 0;
+e->vital = false;
+e->used = false;
+return e;
+}
+
+
+bool traceAugPathFromEdgeRe(vector<MyEdge*> *graph, vector<MyEdge*>* partial_matching, MyEdge* edge){
+    edge->used = true;
+    cout<<"traceAugPathFromEdgeRe"<<endl;
+    bool found = false;
+    cout<<"print current edge"<<endl;
+    if(edge->direction == 1){
+        cout<<edge->var->name<<"->"<<edge->num<<endl;
+    }else{
+        cout<<edge->var->name<<"<-"<<edge->num<<endl;
+    }
+    vector<MyEdge*>* predecessor = getPredecessor(graph,edge);
+    if(predecessor->empty()){
+        //no predecessor, trace of augmenting path terminates
+        if(edge->direction == 0){
+            //terminate with number vertex, found, reverse direction of this edge and push it into matching.
+            found = true;
+            edge->direction = 1;
+            partial_matching->push_back(edge);
+        }
+        //else terminate with variable vertex, return false as default
+    }else{
+        if(edge->direction == 0){
+            //the predecessor can be and only be one edge in the match if there exists any predecessor.
+            found = traceAugPathFromEdgeRe(graph, partial_matching, predecessor->at(0));
+            if(found){
+                edge->direction = 1;
+                partial_matching->push_back(edge);
+            }
+        }else{
+            for(int i = 0; !found && i < predecessor->size(); i++){
+                if(predecessor->at(i)->used){
+                    continue;
+                }
+                found = traceAugPathFromEdgeRe(graph, partial_matching,predecessor->at(i)); 
+                if(found){
+                    edge->direction = 0;
+                    for(int j = partial_matching->size() - 1; j >= 0 ; j--){
+                        if(partial_matching->at(j)->var == edge->var && partial_matching->at(j)->num == edge->num){
+                            partial_matching->erase(partial_matching->begin()+j);
+                        }
+                    }
+                }
+            } 
+        }
+       
+    }
+    while(!predecessor->empty()){
+        predecessor->pop_back();
+    }
+    free(predecessor);
+    return found;
+}
+bool traceAugPathFromVar(vector<MyEdge*> *graph, vector<MyEdge*>* partial_matching, Variable* var){
+    cout<<"traceAugPathFromVar"<<endl;
+    bool found = false;
+    for(int i = 0; i < graph->size(); i++){
+        graph->at(i)->used = false;
+    }
+    for(int i = 0; !found && i < graph->size(); i++){
+        if(graph->at(i)->var == var && graph->at(i)->direction==0){
+            found = traceAugPathFromEdgeRe(graph, partial_matching, graph->at(i));       
+            if(found){
+                //graph->at(i)->direction ==1;
+                //partial_matching->push_back(graph->at(i));
+            }
+        }
+    }
+
+    return found;
+}
+
+
+
+void buildMaxMatchingFrom(vector<MyEdge*>* graph, vector<MyEdge*>* partial_matching, vector<MyEdge*>* max_matching, VariableQueue* variables){
+    //find unmatched variables
+    deque<Variable*>  unmatched_vars = deque<Variable*>();
+    for(int i = 0; i < variables->size(); i++)
+    {
+        Variable* var = variables->at(i);
+        bool in_match = false;
+        for(int j = 0; !in_match && j < partial_matching->size(); j++)
+        {
+            if(var == partial_matching->at(j)->var){ 
+                in_match = true;
+            }        
+        }
+        if(!in_match){
+            unmatched_vars.push_back(var);
+        }
+    }
+    //for every unmatched variable, backtrace an alternating path and try a max matching
+    cout<<"start to compute max_matching"<<endl;
+    bool found = true;
+    while(found && !unmatched_vars.empty()){
+        for(int i = 0; i < graph->size(); i++){
+            graph->at(i)->used = false;//here, edge->used is to denote whether the edge is visited, not the initial role as it is declared.
+        }
+        Variable *var = unmatched_vars.front();
+        cout<<"fin augPathFromVar"<<endl;
+        found = traceAugPathFromVar(graph, partial_matching, var);
+        if(found){
+            unmatched_vars.pop_front();
+        }else{
+            // some variable cannot be added into matching without conflict
+            while(!max_matching->empty()){
+                max_matching->pop_back();
+            }
+            //max_matching = new vector<MyEdge*>(); 
+        }
+    }
+    cout<<"found and assign max_matching"<<endl;
+    if(found){
+       (*max_matching) = (*partial_matching);
+    }
+}
+
+//max_matching is ideally the matching covering variable vertice
+//if no maximum matching, return empty mathing
+vector<MyEdge* >* computeMaxMatch(vector<MyEdge*>* graph, VariableQueue* variables, int point){
+    vector<int> domain = vector<int>();  
+    vector<MyEdge*> *max_matching = new vector<MyEdge*> ();
+    vector<MyEdge*> *partial_matching = new vector<MyEdge*>(); 
+    for(int i = 0; i < variables->size(); i++){
+        Variable * var = variables->at(i);
+        for(int j = 0; j < var->currDM->at(point).size(); j++){
+            domain.push_back(var->currDM->at(point).at(j));
+        }
+    }
+    deleteDup(domain);
+    if(domain.size() < variables->size())
+    {
+        return max_matching;
+    } else{
+        cout<<"compute partial_matching"<<endl;
+        partial_matching = greedilyFindMatch(graph);
+        cout<<"print partial_matching"<<endl;
+        printMyEdge(partial_matching);
+        if(partial_matching->size() < variables->size()){
+            //the matching does not covers variables, trying to find maximum matching using the partial matching
+            cout<<"build max matching from partial matching"<<endl;
+            buildMaxMatchingFrom(graph, partial_matching, max_matching, variables);
+            if(max_matching->size()==0){
+                while(!partial_matching->empty()){
+                    partial_matching->pop_back();
+                }
+                myFree(partial_matching);
+            }
+            return max_matching;
+        } else if(partial_matching->size() == variables->size()){
+            //the matching covers variable vertice
+           max_matching = partial_matching;
+        }
+    }
+
+    return max_matching;    
+}
+
+
+
+
+
+//initialise all edges between variables and domain num, direction is from num to variable vertex 
+vector<MyEdge*>  *buildMyGraph(Constraint *constr, int point){
+    VariableQueue* variables = new vector<Variable*>();
+    for(int i = 0; i < constr->variables->size(); i++){
+        variables->push_back(constr->variables->at(i));
+    }
+    for(int i = 0; i < variables->size(); i++){
+        for(int j = variables->size()-1; j > i; j--){
+            if(variables->at(j) == variables->at(i)){
+                variables->erase(variables->begin()+j);
+            }
+        }
+    }
+    vector<MyEdge*> * graph = new vector<MyEdge*>();
+    for(int i = 0; i < variables->size(); i++){
+        Variable * var = variables->at(i);
+        vector<int>* temp_dm = &(var->currDM->at(point));
+        for(int j = 0; j < temp_dm->size(); j++){
+            MyEdge* temp = newMyEdge(var, temp_dm->at(j));
+            graph->push_back(temp);
+        }
+    }
+    while(!variables->empty()){
+        variables->pop_back();
+    }
+    myFree(variables);
+    return graph;
+}
+
+//greedily assign variable vertex with domain num unmatched with other variable vertex
+//if no such num, bypass the variable num and return the matching
+//num_of_var is the number of variables, which should be the upper bound of the size of matching
+vector<MyEdge*>* greedilyFindMatch(vector<MyEdge*> *graph){
+    vector<Variable* > matchedVars =vector<Variable *>();
+    vector<int> matchedNums = vector<int>(); 
+    vector<MyEdge*>* matching = new vector<MyEdge*>();
+    for(int i = 0; i < graph->size();i++){
+        if(graph->at(i)->direction == 0){
+            Variable* var = graph->at(i)->var;
+            int num = graph->at(i)->num;
+            bool found = variableQueueFind(&matchedVars, var);
+            if(found){
+                continue;
+            } else{
+                for(int j = 0; !found && j < matchedNums.size(); j++){
+                    if(matchedNums.at(j) == num){
+                        found = true;
+                    }
+                }
+            }
+            if(!found){
+                graph->at(i)->direction = 1;
+                matchedVars.push_back(var);
+                matchedNums.push_back(num);
+                matching->push_back(graph->at(i));
+            }
+        }
+    }
+    return matching; 
+}
+
+
+
+vector<MyEdge*>* removeEdgeFromG(vector<MyEdge*> *graph, vector<MyEdge*>* matching){
+    //mark all edges in graph as unused
+    for(int i = 0; i < graph->size(); i++){
+        graph->at(i)->used = false;
+    }
+    vector<MyEdge*> *removed_edges = new vector<MyEdge*>();
+
+    //do BFS starting from free vertices, that is, free num vertices
+    //mark all traversed edges as used
+    deque<MyEdge*> BFS_queue = deque<MyEdge*>();
+    vector<int> num_in_match = vector<int>();
+    for(int i = 0; i < matching->size(); i++){
+        num_in_match.push_back(matching->at(i)->num);
+    }
+    for(int i = 0; i < graph->size(); i++){
+        bool in_match = false;
+        for(int j = 0; !in_match && j < num_in_match.size(); j++){
+            if( num_in_match.at(j)== graph->at(i)->num){
+                in_match = true;
+            }
+        }
+        if(!in_match){
+            graph->at(i)->used = true;
+            BFS_queue.push_back(graph->at(i));
+        }
+    }
+    while(!BFS_queue.empty()){
+        MyEdge* edge = BFS_queue.front();
+        BFS_queue.pop_front();
+        if(edge->direction == 0){
+            for(int i = 0; i < graph->size(); i++){
+                if((!graph->at(i)->used) && graph->at(i)->var == edge->var && graph->at(i)->direction == 1){
+                    graph->at(i)->used = true;
+                    BFS_queue.push_back(graph->at(i));
+                }
+            }
+        } else{
+            for(int i = 0; i < graph->size(); i++){
+                if((!graph->at(i)->used) && graph->at(i)->num == edge->num && graph->at(i)->direction == 0){
+                    graph->at(i)->used = true;
+                    BFS_queue.push_back(graph->at(i));
+                }
+            }
+        }
+    }
+
+    //compute the strongly connected components of graph, mark as used
+    cout<<"compute SCC"<<endl;
+    computeSCC(graph, matching); 
+    
+    //mark vital edges and build removed_edges
+    for(int i = graph->size()-1; i >= 0 ; i--){
+        if(!graph->at(i)->used){
+            for(int j = 0; j < matching->size(); j++){
+                if(matching->at(j)->var == graph->at(i)->var && matching->at(j)->num == graph->at(i)->num){
+                    graph->at(i)->vital = true;
+                }
+            }
+            if(!graph->at(i)->vital){
+                removed_edges->push_back(graph->at(i));
+                graph->erase(graph->begin() + i);
+            }
+        }
+    }
+    return removed_edges;
+}
+
+//return predecessor of the source of the edge, e.d., for edge u->v, return all edges x->u
+vector<MyEdge*>* getPredecessor(vector<MyEdge*>* graph, MyEdge* edge){
+    vector<MyEdge*> *predecessor = new vector<MyEdge*>();
+    if(edge->direction == 1){
+        for(int i = 0; i < graph->size(); i++){
+            if(graph->at(i)->direction ==0 && graph->at(i)->var == edge->var){
+                predecessor->push_back(graph->at(i));
+            }
+        }
+    }else{
+        for(int i = 0; i < graph->size(); i++){
+            if(graph->at(i)->direction ==1 && graph->at(i)->num == edge->num){
+                predecessor->push_back(graph->at(i));
+            }
+        }
+    }
+    return predecessor;
+}
+
+//return successor of the endpoint of edge. e.g. for edge u->v, return all edges v->x;
+vector<MyEdge*>* getSuccessor(vector<MyEdge*>* graph, MyEdge* edge){
+    vector<MyEdge*> *successor = new vector<MyEdge*>();
+    if(edge->direction == 0){
+        for(int i = 0; i < graph->size(); i++){
+            if(graph->at(i)->direction == 1 && edge->var == graph->at(i)->var){
+                successor->push_back(graph->at(i));
+            }
+        }
+    }else{
+        for(int i = 0; i < graph->size(); i++){
+            if(graph->at(i)->direction == 0 && edge->var == graph->at(i)->var){
+                successor->push_back(graph->at(i));
+            }
+        }
+    }
+    return successor;
+}
+
+bool computeSCCFromRe(vector<MyEdge*>*graph, MyEdge* start_edge, vector<MyEdge*>* my_stack){
+    MyEdge* curr_edge = my_stack->back();
+
+    bool found = false;
+    bool has_cycle = false;
+    vector<MyEdge*> *successor = getSuccessor(graph, curr_edge);
+    
+    for(int i = 0; i < successor->size(); i++){
+        if(successor->at(i)->used){
+            curr_edge->used = true;
+            has_cycle = true;
+            found = true;
+            continue; 
+        }
+        if(curr_edge->direction ==1){
+            my_stack->push_back(successor->at(i));
+            found = computeSCCFromRe(graph, start_edge, my_stack); 
+            if(found){
+                curr_edge->used = true;
+                has_cycle = true;
+            }
+            my_stack->pop_back();
+        } else if(curr_edge->direction == 0){
+            if(curr_edge->var == start_edge->var){
+                curr_edge->used = true;
+                return true;
+            } else{
+                my_stack->push_back(successor->at(i));
+                found = computeSCCFromRe(graph, start_edge, my_stack);
+                if(found){
+                    curr_edge->used = true;
+                    has_cycle = true;
+                }
+                my_stack->pop_back();
+            }
+        }
+    }
+    while(successor->empty()){
+        successor->pop_back();
+    }
+    myFree(successor);
+    return has_cycle;
+}
+
+bool computeSCCFrom(vector<MyEdge*>* graph, MyEdge* start_edge){
+    bool found = false;
+    vector<MyEdge*>* my_stack = new vector<MyEdge*>();
+    my_stack->push_back(start_edge);
+    found = computeSCCFromRe(graph, start_edge, my_stack);
+    while(!my_stack->empty())
+    {
+        my_stack->pop_back();
+    }
+    return found;
+}
+
+void computeSCC(vector<MyEdge*>* graph, vector<MyEdge*> *matching){
+    for(int i = 0; i < matching->size(); i++){
+        if(!matching->at(i)->used){
+            bool found = computeSCCFrom(graph, matching->at(i));
+            if(found){
+                matching->at(i)->used = true; //should be done in computeSCCFrom, not necessary?
+            }
+        }
+    }
+}
+
+
+
+//ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode* constrNode, vector<int> &domain);
 /* OmegaSolver */
 void solverAddConstr(Solver *solver, Node *node) {
-    int lb, ub;
-    Constraint *constr = constraintNew(solver, constraintNormalise(solver, constraintNodeParse(solver, node), lb, ub));
+	vector<int> temp = vector<int>();
+	Constraint *constr = constraintNew(solver, constraintNormalise(solver, constraintNodeParse(solver, node), temp));
     if (!constraintNodeTautology(constr->node)) {
         solverConstraintQueuePush(solver->constrQueue, constr, solver, true);
     } else {
@@ -57,15 +504,18 @@ void solverAddConstrVarEqAt(Solver *solver, Variable * x, Variable * y, int time
 }
 
 /* OmegaSolver */
-ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &lb, int &ub) {
+ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, vector<int> &domain) {
     ConstraintNode *constrNode = NULL;
     ConstraintNode *constrNodeLeft = NULL;
     ConstraintNode *constrNodeRight = NULL;
     Variable *x, *y, *z;
-    int myLB, myUB, myLB2, myUB2;
+    //int myLB, myUB, myLB2, myUB2;
+	vector<int> myDM, myDM2;
+	myDM = vector<int>();
+	myDM2 = vector<int>();
 
     if (node != NULL) {
-        if (node->token != IDENTIFIER && node->token != CONSTANT && node->token != ARR_IDENTIFIER) {
+        if (node->token != IDENTIFIER && node->token != CONSTANT && node->token != ARR_IDENTIFIER && node->token != LIST_ELEMENT) {
             myLog(LOG_DETAILED_TRACE, "Token: %s\n", tokenString(solver->tokenTable, node->token));
         } else if ( node->token == CONSTANT ) {
             myLog(LOG_DETAILED_TRACE, "Constant: %d\n", node->num);
@@ -73,42 +523,27 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
             myLog(LOG_DETAILED_TRACE, "Identifier: %s\n", node->var->name);
         } else if ( node->token == ARR_IDENTIFIER ) {
             myLog(LOG_DETAILED_TRACE, "ARR_Identifier: %s\n", node->array->name);
-        }
+		} else if ( node->token == LIST_ELEMENT){
+			myLog(LOG_DETAILED_TRACE, "LIST_ELEMENT: \n");
+		}
 
         if (node->token == FIRST) {
             if (node->right->token == CONSTANT) {
-                lb = node->right->num;
-                ub = node->right->num;
+				domain = vector<int>();	
+				domain.push_back(node->right->num);
                 constrNode = node->right;
                 myFree(node);
             } else if (node->right->token == IDENTIFIER) {
-                lb = node->right->var->lb;
-                ub = node->right->var->ub;
+				domain = *(node->right->var->domain);
                 constrNode = node;
-            // } else if (node->right->token == NEXT ){
-            //     ConstraintNode * temp_node = node->right;
-            //     int timepoint = 0;
-            //     while(node->right != NULL){
-            //         if(node->right->token != NEXT )
-            //             break;
-            //         else {
-            //             timepoint++;
-            //             node->right = node->right->right;
-            //             myFree(temp_node);
-            //             temp_node = node->right;
-            //         }
-            //     }
-            //     constrNode = constraintNodeNew(AT, 0, NULL, NULL, node->right, constraintNodeNewConstant(timepoint) );
-            //     constrNode = constraintNormalise(solver, constrNode, myLB, myUB);
-            //     myFree(node);
             } else if (node->right->token == FBY) {
                 constrNodeRight = node->right->left;
                 constraintNodeFree(node->right->right);
                 myFree(node->right);
                 node->right = constrNodeRight;
-                constrNode = constraintNormalise(solver, node, lb, ub);
+                constrNode = constraintNormalise(solver, node, domain);
             } else {
-                constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+                constrNodeRight = constraintNormalise(solver, node->right, myDM);
                 if (constrNodeRight->token == FIRST) {
                     ConstraintNode *temp = constrNodeRight->right;
                     myFree(constrNodeRight);
@@ -116,19 +551,18 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 }
                 node->right = constrNodeRight;
                 constrNode = node;
-                lb = myLB;
-                ub = myUB;
+				domain = myDM;
             }
         } else if (node->token == NEXT) {
             if (node->right->token == CONSTANT) {
-                lb = node->right->num;
-                ub = node->right->num;
+				vector<int> temp;
+				temp.push_back(node->right->num);	
+				domain = temp;
                 constrNode = node->right;
                 myFree(node);
             } else if (node->right->token == IDENTIFIER) {
-                lb = node->right->var->lb;
-                ub = node->right->var->ub;
-                x = solverAuxVarNew(solver, NULL, lb, ub);
+				domain = *(node->right->var->domain);
+                x = solverAuxVarNew(solver, NULL, domain);
                 solverAddConstrVarEqNext(solver, x, node->right->var);
                 myFree(node->right);
                 myFree(node);
@@ -138,58 +572,59 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 constraintNodeFree(node->right->left);
                 myFree(node->right);
                 myFree(node);
-                constrNode = constraintNormalise(solver, constrNode, lb, ub);
+				constrNode = constraintNormalise(solver, constrNode, domain);
             } else {
-                constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
+				constrNodeRight = constraintNormalise(solver, node->right, myDM);
                 if (constrNodeRight->token == FIRST) {
                     myFree(node);
                     constrNode = constrNodeRight;
                 } else if (constrNodeRight->token == CONSTANT || constrNodeRight->token == IDENTIFIER) {
                     node->right = constrNodeRight;
-                    constrNode = constraintNormalise(solver, node, myLB, myUB);
+					constrNode = constraintNormalise(solver, node, myDM);
                 } else {
-                    x = solverAuxVarNew(solver, NULL, myLB, myUB);
+					x = solverAuxVarNew(solver, NULL, myDM);
                     solverAddConstrVarEqNode(solver, x, constrNodeRight);
-                    y = solverAuxVarNew(solver, NULL, myLB, myUB);
+					y = solverAuxVarNew(solver, NULL, myDM);
                     solverAddConstrVarEqNext(solver, y, x);
                     constrNode = constraintNodeNew(IDENTIFIER, 0, y, NULL, NULL, NULL);
                     myFree(node);
                 }
-                lb = myLB;
-                ub = myUB;
+				domain = myDM;
             }
         } else if (node->token == FBY) {
             if (node->left->token == IDENTIFIER) {
-                myLB = node->left->var->lb;
-                myUB = node->left->var->ub;
+				myDM = *(node->left->var->domain);
                 y = node->left->var;
                 myFree(node->left);
             } else {
-                constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-                y = solverAuxVarNew(solver, NULL, myLB, myUB);
+                constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+                y = solverAuxVarNew(solver, NULL, myDM);
                 solverAddConstrVarEqNode(solver, y, constrNodeLeft);
             }
             if (node->right->token == IDENTIFIER) {
-                myLB2 = node->right->var->lb;
-                myUB2 = node->right->var->ub;
+                myDM2 = *(node->right->var->domain);
                 z = node->right->var;
                 myFree(node->right);
             } else {
-                constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
-                z = solverAuxVarNew(solver, NULL, myLB2, myUB2);
+                constrNodeRight = constraintNormalise(solver, node->right, myDM2);
+				z = solverAuxVarNew(solver, NULL, myDM2);
                 solverAddConstrVarEqNode(solver, z, constrNodeRight);
             }
-            lb = MIN(myLB, myLB2);
-            ub = MAX(myUB, myUB2);
-            x = solverAuxVarNew(solver, NULL, lb, ub);
+			
+            domain = myDM;
+			for(int i = 0; i < myDM2.size(); i++){
+				domain.push_back(myDM2.at(i));
+			}
+			deleteDup(domain);
+			x = solverAuxVarNew(solver, NULL, domain);
             solverAddConstrFirstEqFirst(solver, x, y);
             solverAddConstrVarEqNext(solver, z, x);
             constrNode = constraintNodeNew(IDENTIFIER, 0, x, NULL, NULL, NULL);
             myFree(node);
         } else if (node->token == AT) {
             if (node->left->token == CONSTANT) {
-                lb = node->left->num;
-                ub = node->left->num;
+				domain = vector<int>();
+				domain.push_back(node->left->num);
                 constrNode = node->left;
                 myFree(node);
             } else if (node->left->token == NEXT) {
@@ -209,33 +644,31 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 constrNode = node;
             } else {
                 if(node->left->token == IDENTIFIER) {
-                    myLB = node->left->var->lb;
-                    myUB = node->left->var->ub;
+					myDM = *(node->left->var->domain);
                     y = node->left->var;
                     myFree(node->left);
                 } else {
-                    constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-                    y = solverAuxVarNew(solver, NULL, myLB, myUB);
+					constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+					y = solverAuxVarNew(solver, NULL, myDM);
                     solverAddConstrVarEqNode(solver, y, constrNodeLeft);
                 }
-                lb = myLB;
-                ub = myUB;
-                x = solverAuxVarNew(solver, NULL, lb, ub);
+				domain = myDM;
+				x = solverAuxVarNew(solver, NULL, domain);
                 solverAddConstrVarEqAt(solver, x, y, node->right->num);
                 constrNode = constraintNodeNew(IDENTIFIER, 0, x, NULL, NULL, NULL);
                 myFree(node);
             } 
         } else if (node->token == IDENTIFIER || node->token == CONSTANT) {
             if (node->token == IDENTIFIER) {
-                lb = node->var->lb;
-                ub = node->var->ub;
+				domain = *(node->var->domain);
             } else {
-                lb = node->num;
-                ub = node->num;
+				domain = vector<int>();
+				domain.push_back(node->num);
             }
             constrNode = node;
         } else if (node->token == ARR_IDENTIFIER) {
-            node->right = constraintNormalise(solver, node->right, myLB, myUB);
+			node->right = constraintNormalise(solver, node->right, myDM);
+			/*
             vector<int> elements = node->array->elements;
             int size = elements.size();
             lb = elements[1];
@@ -244,83 +677,160 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
                 lb = elements[i] < lb ? elements[i] : lb;
                 ub = elements[i] > ub ? elements[i] : ub;
             }
+			*/
+			domain = node->array->elements;
             constrNode = node;
         } else if (node->token == UNTIL_CON ) {
+			/*
             constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
             constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
+			*/
+			constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+            constrNodeRight = constraintNormalise(solver, node->right, myDM2);
+
             if (node->left->token != IDENTIFIER ){
-                x = solverAuxVarNew(solver, NULL, 0, 1);
+				vector<int> temp_dm = vector<int>();
+				temp_dm.push_back(0);
+				temp_dm.push_back(1);
+				x = solverAuxVarNew(solver, NULL, temp_dm);
                 node->left = constraintNodeNewVar(x);
                 solverAddConstrVarEqNode(solver, x, constrNodeLeft);
             }
             if (node->right->token != IDENTIFIER ){
-                y = solverAuxVarNew(solver, NULL, 0, 1);
+				vector<int> temp_dm = vector<int>();
+				temp_dm.push_back(0);
+				temp_dm.push_back(1);
+                y = solverAuxVarNew(solver, NULL, temp_dm);
                 node->right = constraintNodeNewVar(y);
                 solverAddConstrVarEqNode(solver, y, constrNodeRight);
             }
             constrNode = node;
-        } else if (node->token == node->token == NOT_OP) {
-            constrNodeRight = constraintNormalise(solver, node->right, myLB, myUB);
-            lb = 0;
-            ub = 1;
+        } else if (node->token == NOT_OP) {
+			constrNodeRight = constraintNormalise(solver, node->right, myDM);
+			domain = vector<int>();
+			domain.push_back(0);
+			domain.push_back(1);
             node->right = constrNodeRight;
             constrNode = node;
-        } else {
-            constrNodeLeft = constraintNormalise(solver, node->left, myLB, myUB);
-            constrNodeRight = constraintNormalise(solver, node->right, myLB2, myUB2);
+		} else if(node->token == MAX_OP || node->token == MIN_OP || node->token == ALLDIFF){
+            ConstraintNode *list = node->right; 
+			ConstraintNode *list_node = node->right;
+			//constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
+			//lb = myLB;
+			//ub = myUB;
+			constrNodeRight = constraintNormalise(solver,list_node->right,myDM);
+			domain = myDM;
+			list_node->right = constrNodeRight;
+			while(list_node->left!=NULL){
+				list_node = list_node->left;
+				//constrNodeRight = constraintNormalise(solver,list_node->right,myLB,myUB);
+				//lb = lb < myLB ? myLB : lb;
+				//ub = ub < myUB ? myUB : ub;
+				constrNodeRight = constraintNormalise(solver,list_node->right,myDM);
+				domain.insert(domain.end(), myDM.begin(), myDM.end());
+				list_node->right = constrNodeRight;
+			}
+			deleteDup(domain);
+			/*
+			for(int i = 0; i < domain.size(); i++){
+				for(int j = domain.size()-1; j > i; j --){
+					if(domain.at(j) == domain.at(i)){
+						domain.erase(domain.begin() + j);
+					}
+				}
+			}
+			*/
+			node->right=list;	
+			constrNode = node;
+		}  
+		else {
+			constrNodeLeft = constraintNormalise(solver, node->left, myDM);
+            constrNodeRight = constraintNormalise(solver, node->right, myDM2);
 
             if (node->token == ABS) {
-                if (myLB2 < 0 && myUB2 < 0) {
-                    lb = -myUB2;
-                    ub = -myLB2;
-                } else if (myLB2 < 0 && myUB2 > 0) {
-                    lb = 0;
-                    ub = MAX(-myLB2, myUB2);
-                } else {
-                    lb = myLB2;
-                    ub = myUB2;
-                }
+				for(int j=0; j < myDM.size();j++){
+					if(myDM[j]<0){
+						myDM[j]=-myDM[j];
+					}
+				}
+				for(int j=0; j < myDM2.size();j++){
+					if(myDM2[j]<0){
+						myDM2[j]=-myDM[j];
+					}
+				}
+				domain = myDM;
+				domain.insert(domain.end(), myDM2.begin(), myDM2.end());
+				deleteDup(domain);
             } else if (node->token == IF) {
-                lb = myLB2;
-                ub = myUB2;
+				domain = myDM2;
+				deleteDup(domain);
             } else if (node->token == THEN) {
-                lb = MIN(myLB, myLB2);
-                ub = MAX(myUB, myUB2);
+				domain = myDM;
+				domain.insert(domain.end(), myDM2.begin(), myDM2.end());
+				deleteDup(domain);
             } else if (node->token == '<' || node->token == '>' || node->token == LE_CON || node->token == GE_CON ||
                        node->token == EQ_CON || node->token == NE_CON || node->token == IMPLY_CON ||
                        node->token == LT_OP || node->token == GT_OP || node->token == LE_OP || node->token == GE_OP ||
                        node->token == EQ_OP || node->token == NE_OP ||
                        node->token == AND_OP || node->token == OR_OP) {
-                lb = 0;
-                ub = 1;
+                //lb = 0;
+                //ub = 1;
+				domain = vector<int>();
+				domain.push_back(0);
+				domain.push_back(1);
             } else if (node->token == '+') {
-                lb = myLB + myLB2;
-                ub = myUB + myUB2;
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] + myDM2[k]);
+					}
+				}
+				deleteDup(domain);
             } else if (node->token == '-') {
-                lb = myLB - myUB2;
-                ub = myUB - myLB2;
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] - myDM2[k]);
+					}
+				}
+				deleteDup(domain);
             } else if (node->token == '*') {
-                if (myLB >= 0 && myLB2 >= 0) {
-                    lb = myLB * myLB2;
-                    ub = myUB * myUB2;
-                } else if (myLB >= 0 && myUB2 >= 0 && myLB2 < 0) {
-                    lb = myUB * myLB2;
-                    ub = myUB * myUB2;
-                } else if (myUB >= 0 && myLB < 0 && myLB2 >= 0) {
-                    lb = myLB * myLB2;
-                    ub = myUB * myUB2;
-                } else {
-                    lb = myUB * myUB2;
-                    ub = myLB * myLB2;
-                }
-            } else if (node->token == '/') {
-                lb = MY_INT_MIN;
-                ub = MY_INT_MAX;
-            } else if (node->token == '%') {
-                lb = MY_INT_MIN;
-                ub = MY_INT_MAX;
-            }
 
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] * myDM2[k]);
+					}
+				}
+				deleteDup(domain);
+            } else if (node->token == '/') {
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] / myDM2[k]);
+					}
+				}
+				deleteDup(domain);
+            } else if (node->token == '%') {
+				domain = vector<int>();	
+				for(int j =0; j < myDM.size(); j++){
+					for(int k = 0; k < myDM2.size(); k++){
+						domain.push_back(myDM[j] % myDM2[k]);
+					}
+				}
+				deleteDup(domain);
+			}
+			//delete duplicate value in domains
+			deleteDup(domain);
+			/*
+			for(int i = 0; i < domain.size(); i++){
+				for(int j = domain.size()-1; j > i; j --){
+					if(domain.at(j) == domain.at(i)){
+						domain.erase(domain.begin() + j);
+					}
+				}
+			}		
+			*/
             node->left = constrNodeLeft;
             node->right = constrNodeRight;
             constrNode = node; //constraintNodeNew(node->token, 0, NULL, constrNodeLeft, constrNodeRight);
@@ -328,6 +838,15 @@ ConstraintNode *constraintNormalise(Solver *solver, ConstraintNode *node, int &l
     } else {
         // myLog(LOG_ERROR, "ConstraintNode to be normalised is NULL!\n");
     }
+	/*
+	for( int j = 0; j < domain.size(); j++ ){
+		for( int k = domain.size()-1; k > j; k--){
+			if(domain.at(k) == domain.at(j)){
+				domain.erase(domain.begin()+k);
+			}
+		}
+	}
+	*/
     return constrNode;
 }
 
@@ -390,6 +909,42 @@ int solverValidateRe(ConstraintNode *node, bool & valid) {
                 right = solverValidateRe(node->right, valid);
                 res = (left <= right);
             }
+		} else if(node->token == MAX_OP){
+			ConstraintNode *list_node = node->right;
+			right = solverValidateRe(list_node->right, valid);
+			res = right;
+			while(list_node->left != NULL){
+				list_node = list_node->left;
+				right = solverValidateRe(list_node->right, valid);
+				res = res > right ? res : right;
+			}
+		} else if(node->token == MIN_OP){
+			ConstraintNode *list_node = node->right;
+			right = solverValidateRe(list_node->right, valid);
+			res = right;
+			while(list_node->left != NULL){
+				list_node = list_node->left;
+				right = solverValidateRe(list_node->right, valid);
+				res = res < right ? res : right;
+			}
+		} else if(node->token == ALLDIFF){
+            ConstraintNode* list_node = node->right;
+            right =solverValidateRe(list_node->right, valid);
+            vector<int> list = vector<int>();
+            list.push_back(right);
+            while(list_node->left != NULL){
+                list_node = list_node->left;
+                right = solverValidateRe(list_node->right, valid);
+                list.push_back(right);
+            }
+            res = 1;
+            for(int i = 0; i < list.size(); i++){
+                for(int j = i + 1; j < list.size(); j++){
+                    if(list.at(i) == list.at(j)){
+                        res = 0;
+                    }
+                }
+            }
         } else {
             left = solverValidateRe(node->left, valid);
             right = solverValidateRe(node->right, valid);
@@ -417,7 +972,7 @@ int solverValidateRe(ConstraintNode *node, bool & valid) {
                 res = left / right;
             } else if (node->token == '%') {
                 res = left % right;
-            }
+			} 
         }
     }
     return res;
@@ -439,12 +994,15 @@ bool findSupportRe(Constraint *constr, Variable *var, int point, int index, int 
             return validate(constr);
         } else {
             bool supported = false;
-            int lb = thisVar->currLB[point];
-            int ub = thisVar->currUB[point];
-            for (int c = lb; !supported && c <= ub; c++) {
-                thisVar->propagateValue = c;
-                supported = validate(constr);
-            }
+			vector<int> domain = thisVar->currDM->at(point);
+			bool hasDup = deleteDup(domain);
+			if(hasDup){
+				thisVar->currDM->at(point) = domain;
+			}
+			for(int i = 0; !supported && i < thisVar->currDM->at(point).size(); i++){
+				thisVar->propagateValue = thisVar->currDM->at(point).at(i);
+				supported = validate(constr);
+			}
             return supported;
         }
     } else {
@@ -452,12 +1010,15 @@ bool findSupportRe(Constraint *constr, Variable *var, int point, int index, int 
             return findSupportRe(constr, var, point, index+1, numVar);
         } else {
             bool supported = false;
-            int lb = thisVar->currLB[point];
-            int ub = thisVar->currUB[point];
-            for (int c = lb; !supported && c <= ub; c++) {
-                thisVar->propagateValue = c;
-                supported = findSupportRe(constr, var, point, index+1, numVar);
-            }
+			vector<int> domain = thisVar->currDM->at(point);
+			bool hasDup = deleteDup(domain);
+			if(hasDup){
+				thisVar->currDM->at(point) = domain;
+			}
+			for(int c = 0; !supported && c < thisVar->currDM->at(point).size(); c++){
+				thisVar->propagateValue = thisVar->currDM->at(point).at(c);
+				supported = findSupportRe(constr, var, point, index+1, numVar);
+			}
             return supported;
         }
     }
@@ -475,49 +1036,52 @@ bool findSupport(Constraint *constr, Variable *var, int point) {
 // for each value of var, find support in context of constraint
 bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, int point) {
     bool supported = false;
-    int lb = var->currLB[point]; //get upper bound of timepoint at point
-    int ub = var->currUB[point]; // get lower bound of timepoint at point
+    vector<int> domain = var->currDM->at(point);
+
+	bool hasDup = deleteDup(domain);
+	if(hasDup){
+		var->currDM->at(point) = domain;
+	}
+
+		
 
     myLog(LOG_DEBUG, "enforce point consistency at point :%d\n", point);
     constraintPrint(constr);
-    myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, lb, ub);
+    //myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, lb, ub);
 
-    for (int c = lb; !supported && c <= ub; c++) {
-        var->propagateValue = c;
-        supported = findSupport(constr, var, point);
-    }
 
-    // If no support for lower bound then inconsistent
-    if (supported) {
-        if (lb != var->propagateValue) {
-            change = true;
-            backup(&var->currLB[point]);
-            var->currLB[point] = var->propagateValue;
-        }
-        supported = false;
-        lb = var->currLB[point];
-        for (int c = ub; !supported && c > lb; c--) {
-            var->propagateValue = c;
-            supported = findSupport(constr, var, point);
-        }
+	for( int i = domain.size()-1; i >= 0; i -- ){
+		var->propagateValue = domain.at(i);
+		supported = findSupport(constr, var, point);
+		if(!supported){
+			change = true;
+			domain.erase(domain.begin()+ i);
+		}
+	}
+	if(domain.size() < var->currDM->at(point).size()){
+		backup_dm(&var->currDM->at(point));
+		var->currDM->at(point) = domain;
+	}
+	
+	if(var->currDM->at(point).size()==0){
+		supported = false;
+	} else if(var->currDM->at(point).size() > 0){
+		supported = true;
+	}
+	
 
-        if (!supported) {
-            if (ub != var->currLB[point]) {
-                change = true;
-                backup(&var->currUB[point]);
-                var->currUB[point] = var->currLB[point];
-            }
-            supported = true;
-        } else {
-            if (ub != var->propagateValue) {
-                change = true;
-                backup(&var->currUB[point]);
-                var->currUB[point] = var->propagateValue;
-            }
-        }
-    }
-
-    myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[point], var->currUB[point]);
+    //myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[point], var->currUB[point]);
+	/*
+	myLog(LOG_DEBUG, "after consistency, variable: %s, domain:{", var->name);
+	for(int i = 0; i < var->currDM->at(point).size() - 1; i++){
+		myLog(LOG_DEBUG, "%d, ",var->currDM->at(point).at(i));
+	}
+	if(var->currDM->at(point).size() > 0){
+		myLog(LOG_DEBUG, "%d}\n",var->currDM->at(point).back());
+	} else{
+		myLog(LOG_DEBUG, "} domain is empty\n");
+	}
+	*/
     myLog(LOG_DEBUG, "supported: %d\n", supported);
     return supported;
 }
@@ -526,17 +1090,103 @@ bool enforcePointConsistencyAt(Constraint *constr, Variable *var, bool &change, 
 // Returns true if the arc (var, constr) can be made consistent at all k time points.
 bool enforcePointConsistency(Solver *solver, Constraint *constr, Variable *var, bool &change) {
     myLog(LOG_DEBUG, "solver, enforce point consistency at time point :%d\n", solver->timePoint);
+	//myPrintLevel();
     if (!constr->hasFirst) {
         bool consistent = true;
         int k = solver->prefixK;
         for (int c = 0; consistent && c < k; c++) {
             consistent = enforcePointConsistencyAt(constr, var, change, c);
         }
+		
         return consistent;
     } else {
         return enforcePointConsistencyAt(constr, var, change, 0);
     }
 }
+
+bool enforceAllDiffConsistencyAt(Constraint* constr, Variable* var, bool &change, int point){
+    bool consistent = true;
+    vector<Variable*>* variable_queue = new vector<Variable*> ();
+    for(int i = 0; i < constr->variables->size(); i++){
+        variable_queue->push_back(constr->variables->at(i));
+    }
+    for(int i = 0; i < variable_queue->size(); i++){
+        for(int j = variable_queue->size()-1; j > i; j--){
+            if(variable_queue->at(j) == variable_queue->at(i)){
+                variable_queue->erase(variable_queue->begin()+j);
+            }
+        }
+    }
+    vector<MyEdge*> *graph = buildMyGraph(constr,point);
+    cout<<"print newly built graph"<<endl;
+    printMyEdge(graph); 
+    cout<<"compute Max Match"<<endl;
+    vector<MyEdge*> *max_matching = computeMaxMatch(graph, variable_queue, point);
+    cout<<"print max_matching"<<endl;
+    printMyEdge(max_matching);
+    if(max_matching->size() < constr->numVar){
+        consistent = false;
+    }else if (max_matching->size() == constr->numVar){
+        vector<MyEdge*>* removed_edges = removeEdgeFromG(graph, max_matching);
+        cout<<"print removed_edges"<<endl;
+        printMyEdge(removed_edges);
+        if(removed_edges->size() > 0){
+            for(int i = 0; i < removed_edges->size(); i++){
+
+                //domain changed
+                if(removed_edges->at(i)->var == var){
+                    backup_dm(&var->currDM->at(point));
+                    change = true;
+                    for(int j = 0; j < var->currDM->at(point).size(); j++){
+                        if(var->currDM->at(point).at(j) == removed_edges->at(i)->num){
+                            var->currDM->at(point).erase(var->currDM->at(point).begin() + j);
+                        }
+                    }
+                }
+            }
+        }
+        while(!removed_edges->empty()){
+            free(removed_edges->back());
+            removed_edges->pop_back();
+        }
+        free(removed_edges);
+    }
+    cout<<"finally after remove removed_edges"<<endl;
+    printMyEdge(graph);
+    while(!variable_queue->empty()){
+        variable_queue->pop_back();
+    }
+    free(variable_queue);
+    while(!graph->empty()){
+        free(graph->back());
+        graph->pop_back();
+    }
+    free(graph);
+
+    while(!max_matching->empty()){
+        max_matching->pop_back();
+    }
+    free(max_matching);
+    return consistent;
+}
+
+//assume constraint is an alldiff constraint
+//return true if the consistent can be made at all k time point
+bool enforceAllDiffConsistency(Solver* solver, Constraint* constr, Variable* var, bool &change){
+    myLog(LOG_DEBUG, "solver, enforce alldiff consistency at time point :%d\n", solver->timePoint);
+    if(!constr->hasFirst){
+        bool consistent = true;
+        int k = solver->prefixK;
+        for(int c = 0; consistent && c < k; c++){
+            consistent = enforceAllDiffConsistencyAt(constr, var, change, c);
+        }
+        return consistent;
+        
+    } else{
+        return enforceAllDiffConsistencyAt(constr, var, change, 0);
+    }
+}
+
 
 // Assumes constr is a constraint of form X == next Y.
 // Returns true if the arc (var, constr) can be made consistent.
@@ -545,47 +1195,75 @@ bool enforceNextConsistency(Solver *solver, Constraint *constr, Variable *var, b
     myLog(LOG_DEBUG, "enforce next consistency \n");
     constraintPrint(constr);
     bool consistent = true;
+	vector<int> temp_dm1, temp_dm2, retained_dm;
     //if variable is child var Y 
     if (var == constr->node->right->right->var) {
-        int k = solver->prefixK;
+	int k = solver->prefixK;
         for (int c = 1; consistent && c < k; c++) {
-            myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currLB[c]);
-            if (var->currLB[c] < constr->node->left->var->currLB[c-1]) {
-                change = true;
-                backup(&var->currLB[c]);
-                var->currLB[c] = constr->node->left->var->currLB[c-1];
-            }
-            if (var->currUB[c] > constr->node->left->var->currUB[c-1]) {
-                change = true;
-                backup(&var->currUB[c]);
-                var->currUB[c] = constr->node->left->var->currUB[c-1];
-            }
-            if (var->currLB[c] > var->currUB[c]) {
-                consistent = false;
-            }
-            myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currUB[c]);
-        }
+        //compare the domain of child var Y and parent var X, retain their intersection
+		temp_dm1 = var->currDM->at(c);
+		bool hasDup = deleteDup(temp_dm1);
+		if(hasDup){
+			var->currDM->at(c) = temp_dm1;	
+		}
+		temp_dm2 = constr->node->left->var->currDM->at(c-1);
+		hasDup = deleteDup(temp_dm2);
+		if(hasDup){
+			constr->node->left->var->currDM->at(c-1) = temp_dm2;
+		}
+		
+		retained_dm = vector<int> ();
+		for(int i = 0; i < temp_dm1.size(); i++){
+			for(int j = 0; j < temp_dm2.size(); j++){
+				if(temp_dm1.at(i) == temp_dm2.at(j)){
+					retained_dm.push_back(temp_dm1.at(i));
+					break;
+				}
+			}
+		}
+		if(retained_dm.size() > 0 && retained_dm.size() < temp_dm1.size()){
+			change = true;
+			backup_dm(&var->currDM->at(c));
+			var->currDM->at(c) = retained_dm;
+		}
+		if(retained_dm.size() == 0){
+			consistent = false;
+		}
+    	}
 
     // else if variable is parent var X 
     } else {
         Variable *otherVar = constr->node->right->right->var;
         int k = solver->prefixK;
         for (int c = 0; consistent && c < k-1; c++) {
-            myLog(LOG_DEBUG, "variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currLB[c]);
-            if (var->currLB[c] < otherVar->currLB[c+1]) {
-                change = true;
-                backup(&var->currLB[c]);
-                var->currLB[c] = otherVar->currLB[c+1];
-            }
-            if (var->currUB[c] > otherVar->currUB[c+1]) {
-                change = true;
-                backup(&var->currUB[c]);
-                var->currUB[c] = otherVar->currUB[c+1];
-            }
-            if (var->currLB[c] > var->currUB[c]) {
-                consistent = false;
-            }
-            myLog(LOG_DEBUG, "after consistency, variable: %s, lower_bound: %d, upper_bound: %d\n", var->name, var->currLB[c], var->currUB[c]);
+           	temp_dm1 = var->currDM->at(c);	
+		bool hasDup = deleteDup(temp_dm1);
+		if(hasDup){
+			var->currDM->at(c) = temp_dm1;
+		}
+		temp_dm2 = otherVar->currDM->at(c+1);
+		hasDup = deleteDup(temp_dm2);
+		if(hasDup){
+			otherVar->currDM->at(c+1) = temp_dm2;
+		}
+		retained_dm = vector<int> ();
+		for(int i = 0; i < temp_dm1.size(); i++){
+			for(int j = 0; j < temp_dm2.size(); j++){
+				if(temp_dm1.at(i) == temp_dm2.at(j)){
+					retained_dm.push_back(temp_dm1.at(i));
+					break;
+				}
+			}
+		}
+		deleteDup(retained_dm);
+		if(retained_dm.size() > 0 && retained_dm.size() < temp_dm1.size()){
+			change = true;
+			backup_dm(&var->currDM->at(c));
+			var->currDM->at(c) = retained_dm;
+		}
+		else if(retained_dm.size() == 0){
+			consistent = false;
+		}
         }
     }
     myLog(LOG_DEBUG, "exit from next consistency\n");
@@ -600,21 +1278,27 @@ bool enforceUntilConsistency(Solver *solver, Constraint *constr, Variable *var, 
     // if variable is right var Y
     Variable * left_var = constr->node->left->var;
     Variable * right_var = constr->node->right->var;
-
+	deleteDup(left_var->currDM->at(0));
+	deleteDup(right_var->currDM->at(0));
     if ( constr->expire )
         return consistent;
-    else if ( left_var->currLB[0] == left_var->currUB[0] && right_var->currLB[0] == right_var->currUB[0] ) {
-        if ( right_var->currLB[0] != 1 && left_var->currLB[0] != 1 ){
+	
+    else if ( left_var->currDM->at(0).size() == 1 && right_var->currDM->at(0).size() == 1 ) {
+        if ( right_var->currDM->at(0).at(0) != 1 && left_var->currDM->at(0).at(0) != 1 ){
             consistent = false;
         }
         return consistent;
+		
     } else {
         return consistent;
     }
+	
+	return consistent;
 }
 
 // GAC algorithm
 bool generalisedArcConsistent(Solver *solver) {
+    num_of_tree_node++;
     myLog(LOG_TRACE, "enter generalisedArcConsistent\n");
     bool consistent = true; // consistent is to check whether the consistency is satisfied
     bool change = false; // change is to check whether the range has changed
@@ -629,9 +1313,7 @@ bool generalisedArcConsistent(Solver *solver) {
     
     int numConstr = solver->constrQueue->size();
     for (int c = 0; c < numConstr; c++) {
-        Constraint *constr = (*(solver->constrQueue))[c];
-        int numVar = constr->numVar;
-        
+        Constraint *constr = (*(solver->constrQueue))[c];   
         ArcQueue *arcs = constr->arcs;
         int numArc = arcs->size();
         for (int d = 0; d < numArc; d++) {
@@ -647,6 +1329,14 @@ bool generalisedArcConsistent(Solver *solver) {
         arc->inqueue = false;
         Constraint *constr = arc->constr;
         Variable *var = arc->var;
+        if(constr->type==CONSTR_ALLDIFF){
+            for(int i = solver->arcQueue->size()-1; i > 0; i--){
+                if(solver->arcQueue->at(i)->constr->id == constr->id){
+                    solver->arcQueue->at(i)->inqueue = false;
+                    solver->arcQueue->erase(solver->arcQueue->begin()+i);
+                }
+            }
+        } 
 
         // Enforce arc
         if (constr->type == CONSTR_NEXT) {
@@ -655,18 +1345,18 @@ bool generalisedArcConsistent(Solver *solver) {
             consistent = enforcePointConsistency(solver, constr, var, change);
         } else if (constr->type == CONSTR_UNTIL ) {
             consistent = enforceUntilConsistency(solver, constr, var, change);
-        } else if (constr->type == CONSTR_AT ) {
+        } else if(constr->type == CONSTR_ALLDIFF){
+            consistent = enforceAllDiffConsistency(solver, constr, var, change);
+        }else if (constr->type == CONSTR_AT ) {
             // lazy evaluation for constr_at 
-            // constraint translate <var>@0 to first <var>
+            //constraint translate <var>@0 to first <var>
             consistent = true;
         }
-
         if (!consistent) {
             myLog(LOG_DEBUG, "inconsistent variable: %s\n", var->name);
             constraintNodeLogPrint(constr->node, solver);
             myLog(LOG_DEBUG, ";\n");
         }
-
         if (consistent && change) {
             // Push in relevant arcs
             if(strcmp(var->name, "_V1") == 0){
@@ -692,6 +1382,7 @@ bool generalisedArcConsistent(Solver *solver) {
                 }
             }
         }
+
         arc->inqueue = false;
         change = false;
     }
@@ -701,7 +1392,7 @@ bool generalisedArcConsistent(Solver *solver) {
         solver->arcQueue->pop_front();
         arc->inqueue = false;
     }
-    myLog(LOG_TRACE, "exit generalisedArcConsistent, consistent: %d\n",consistent);
+    //myLog(LOG_TRACE, "exit tr-eneralisedArcConsistent, consistent: %d\n",consistent);
     return consistent;
 }
 
@@ -734,10 +1425,11 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
     Vertex *temp;
     Edge *edge;
     bool ok = false;
-
     Variable *var = solverGetFirstUnboundVar(solver);
+    
     if (var == NULL) {
-      // if there is no variables left, start to solve the instanteous CSP and generate new child node
+	    solver->numStates++;
+        // if there is no variables left, start to solve the instanteous CSP and generate new child node
         int size = solver->varQueue->size();
         myLog(LOG_TRACE, "Before level up\n");
         levelUp();
@@ -824,12 +1516,26 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
                 backup(&temp_constr->expire);
                 if( temp_constr->expire == 1 ){
                     varSig.push_back(1);
-                } else if( temp_constr->node->right->var->currLB[0] == 1 ) {
-                    temp_constr->expire = 1;
-                    varSig.push_back(1);
-                } else {
-                    varSig.push_back(0);
-                }
+                } else{
+		    vector<int> temp_dm = temp_constr->node->right->var->currDM->at(0);
+			// find if the minium value in domain is 1
+			int min = 0;
+			if(temp_dm.size() >= 1){
+				min = temp_dm.at(0);
+			}
+			for(int i = 0; i < temp_dm.size(); i++){
+				if(temp_dm.at(i) < min){
+					min = temp_dm.at(i);
+				}
+			}	
+			if(min == 1){
+				temp_constr->expire = 1;
+				varSig.push_back(1);
+			}
+			else{
+				varSig.push_back(0);
+			}
+		}
             }
         }
 
@@ -857,6 +1563,7 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
             if (generalisedArcConsistent(solver)) {
                 myLog(LOG_DEBUG, "After consistency1\n");
                 ok = solverSolveRe(solver, temp);
+
             } else {
                 myLog(LOG_DEBUG, "After consistency2\n");
                 solver->numFails++;
@@ -913,9 +1620,8 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
         // and sovle the corresponding new stream CSP
         levelUp();
         variableSplitLower(var);
-
-        myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
-        myLog(LOG_DEBUG, "selected: %s [%d,%d] \n", var->name, var->currLB[0], var->currUB[0]);
+        //myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
+        //myLog(LOG_DEBUG, "selected: %s [%d,%d] \n", var->name, var->currLB[0], var->currUB[0]);
 
         if (generalisedArcConsistent(solver)) {
             ok |= solverSolveRe(solver, vertex);
@@ -923,12 +1629,11 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
             solver->numFails++;
         }
         levelDown();
-
         levelUp();
         variableSplitUpper(var);
 
-        myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
-        myLog(LOG_DEBUG, "selected: %s [%d,%d]\n", var->name, var->currLB[0], var->currUB[0]);
+        //myLog(LOG_DEBUG, "time point: %d\n", solver->timePoint);
+        //myLog(LOG_DEBUG, "selected: %s [%d,%d]\n", var->name, var->currLB[0], var->currUB[0]);
 
         if (generalisedArcConsistent(solver)) {
             ok |= solverSolveRe(solver, vertex);
@@ -937,7 +1642,6 @@ int solverSolveRe(Solver *solver, Vertex *vertex) {
         }
         levelDown();
     }
-
     return ok;
 }
 
@@ -946,7 +1650,6 @@ double solverSolve(Solver *solver, bool testing) {
     //solverPrint(solver);
     solver->solveTime = cpuTime();
     solver->seenConstraints->push_back(solver->constrQueue);
-
     //create root node for solving  
     vector<int> temp;
     Signature *signature = new Signature(temp, 0);
@@ -998,7 +1701,8 @@ double solverSolve(Solver *solver, bool testing) {
 
     if (!testing) {
         // init_time, var, con, dom, node, fail, solve_time, processTime
-        printf("%.2f\t%d\t%d\t%d\t%d\t%d\t%.2f\t%.5f\n", solver->initTime, (int) solver->varQueue->size(), (int) solver->constrQueue->size(), solver->numDominance, solver->numNodes, solver->numFails, solver->solveTime, solver->processTime);
+        printf("solver->initTime: %.2f\nsolver->varQueue->size(): %d\nsolver->constrQueue->size()%d\nsolver->numDominance: %d\nsolver->numNodes: %d\nsolver->numFails: %d\nsolver->numStates: %d\nsolver->solverTime: %.2f\nsolver->processTime%.5f\n", solver->initTime, (int) solver->varQueue->size(), (int) solver->constrQueue->size(), solver->numDominance, solver->numNodes, solver->numFails, solver->numStates, solver->solveTime, solver->processTime);
+        printf("num of tree node is %d\n",num_of_tree_node);
         fflush(stdout);
     }
     return solver->solveTime + solver->processTime;

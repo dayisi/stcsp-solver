@@ -9,7 +9,7 @@
 #include <sys/times.h>
 #include "util.h"
 
-//#define DOMAIN_SIZE 16 
+#define DOMAIN_SIZE 16 
 
 #if MEMORY
 unsigned long mallocCount = 0;
@@ -64,9 +64,7 @@ Chunk *memory = NULL;
 
 typedef struct _Chunk_dm{
 	vector<int> **addr;
-	//vector<int> data[CHUNK_SIZE];
-	//vector< vector<int> > data(CHUNK_SIZE, vector<int>(DOMAIN_SIZE, 0))
-	vector< vector<int> >* data;
+	vector<int> data[CHUNK_SIZE];
 	int ptr;
 	struct _Chunk_dm *prev;
 	struct _Chunk_dm *next;
@@ -90,25 +88,19 @@ Chunk *newChunk() {
 
 Chunk_dm *newChunkDm(){
 	Chunk_dm *chunk;
-
-	chunk = (Chunk_dm *)myMalloc(sizeof(Chunk));
-	/*chunk = (Chunk_dm*)myMalloc(sizeof(Chunk_dm) + sizeof(int)  * DOMAIN_SIZE * CHUNK_SIZE + sizeof(vector<int>) * CHUNK_SIZE + (sizeof(vector<int>*) *CHUNK_SIZE));
-	
-    */
+	chunk = (Chunk_dm*)myMalloc(sizeof(Chunk_dm) + sizeof(int)  * DOMAIN_SIZE * CHUNK_SIZE + sizeof(vector<int>) * CHUNK_SIZE);
 	if(chunk == NULL){
+		cout<<"ERROR: out of memory!"<<endl;
 		exit(1);
 	}
 	chunk->addr = (vector <int> **)myMalloc(sizeof(vector<int>*) *CHUNK_SIZE);
 	if(chunk->addr == NULL){
+		cout<<"ERROR: out of memory"<<endl;
 		exit(1);
 	}
-    chunk->data = new vector<vector<int> >(CHUNK_SIZE, vector<int>(DOMAIN_SIZE));
-    for(int i = 0; i < CHUNK_SIZE; i++){
-        for(int j = 0; j < DOMAIN_SIZE; j++){
-            chunk->data->at(i).pop_back();
-        } 
-    }
-      
+	for(int i = 0; i < CHUNK_SIZE; i++){
+		chunk->data[i].reserve(DOMAIN_SIZE);
+	}
 	chunk->ptr = 0;
 	chunk->prev = NULL;
 	chunk->next = NULL;
@@ -140,17 +132,8 @@ void freeMemory() {
         }
 
         while (chunk_dm != NULL) {
-            //while(!chunk_dm->addr->empty()){
-            //    chunk_dm->pop_back();
-            //}
             myFree(chunk_dm->addr);
-            while(!chunk_dm->data->empty()){
-                while(!chunk_dm->data->back().empty()){
-                    chunk_dm->data->back().pop_back();
-                }
-                chunk_dm->data->pop_back();
-            }
-            myFree(chunk_dm->data);
+           // myFree(chunk->data);
             temp_dm = chunk_dm->next;
             myFree(chunk_dm);
             chunk_dm = temp_dm;
@@ -189,11 +172,11 @@ void backup_dm(vector<int> *addr){
 	}
 	if(addr == NULL){
 		memory_dm->addr[memory_dm->ptr] = NULL;
-		memory_dm->data->at(memory_dm->ptr) = vector<int>();
+		memory_dm->data[memory_dm->ptr] = vector<int>();
 		//memory_dm->data[memory->ptr].reserve(DOMAIN_SIZE);
 	} else{
 		memory_dm->addr[memory_dm->ptr] = addr;
-		memory_dm->data->at(memory_dm->ptr) = *addr;
+		memory_dm->data[memory_dm->ptr] = *addr;
 	}
 	memory_dm->ptr++;
 	if(memory_dm->ptr == CHUNK_SIZE){
@@ -207,7 +190,7 @@ void backup_dm(vector<int> *addr){
 }
 
 void myPrintLevel(){
-	//cout<<"level is "<<level<<endl;
+	cout<<"level is "<<level<<endl;
 }
 void printLevel() {
     int i;
@@ -227,6 +210,7 @@ void levelUp() {
 
 /* exported */
 void levelDown() {
+	//cout<<"start level down..."<<endl;
     level--;
     if (memory->ptr == 0) {
         memory = memory->prev;
@@ -241,11 +225,13 @@ void levelDown() {
     }
 
 	if(memory_dm->ptr == 0){
+		//cout<<"memory_dm is root and change to prev memory_dm"<<endl;
 		memory_dm = memory_dm->prev;
+		//cout<<"succeed to change memory_dm"<<endl;
 	}
 	memory_dm->ptr--;
 	while(memory_dm != NULL && memory_dm->addr[memory_dm->ptr] != NULL){
-		*(memory_dm->addr[memory_dm->ptr]) = memory_dm->data->at(memory_dm->ptr);	
+		*(memory_dm->addr[memory_dm->ptr]) = memory_dm->data[memory_dm->ptr];	
 		if(memory_dm->ptr == 0){
 			memory_dm = memory_dm->prev;
 		}
@@ -253,7 +239,7 @@ void levelDown() {
 			memory_dm->ptr--;
 		}
 	}
-    //freeMemory();
+	//cout<<"end of level down..."<<endl;
 }
 
 /* Time */

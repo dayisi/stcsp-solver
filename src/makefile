@@ -53,6 +53,13 @@ endif
 ifeq ($(UNAME_S),Darwin)
 	CFLAGS = -g2 $(ARCH) -O2 -funroll-loops -fomit-frame-pointer -Wall -pedantic -Wno-write-strings -stdlib=libstdc++ $(DFLAGS)
 endif
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+CFLAGS = -g2 $(ARCH) -O2 -funroll-loops -fomit-frame-pointer -Wall -pedantic -Wno-write-strings $(DFLAGS)
+endif
+ifeq ($(UNAME_S),Darwin)
+CFLAGS = -g2 $(ARCH) -O2 -funroll-loops -fomit-frame-pointer -Wall -pedantic -Wno-write-strings -stdlib=libstdc++ $(DFLAGS)
+endif
 endif
 
 -std=gnu99
@@ -95,7 +102,7 @@ solveralgorithm.o: solveralgorithm.cpp solveralgorithm.h
 #automaton.o: automaton.c automaton.h
 #	$(CPP) $(CFLAGS) automaton.c -c
 stcsp: lex.yy.o y.tab.o util.o node.o solver.o variable.o graph.o token.o constraint.o solveralgorithm.o
-	$(CPP) $(CFLAGS) $(LDFLAGS) lex.yy.o y.tab.o node.o util.o solver.o variable.o graph.o token.o constraint.o solveralgorithm.o -o stcsp
+	$(CPP) $(CFLAGS) $(LDFLAGS) lex.yy.o y.tab.o node.o util.o solver.o variable.o graph.o token.o constraint.o solveralgorithm.o -o stcsp 
 
 # solverup.o ac.o automaton.o
 
